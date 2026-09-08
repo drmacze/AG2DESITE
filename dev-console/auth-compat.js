@@ -15,7 +15,8 @@ async function digestHex(text){const b=await crypto.subtle.digest('SHA-256',new 
 function ensureEnhancementStyles(){
   const styles=[
     ['ui-enhancements.css?v=1','ag2UiEnhancements'],
-    ['console-refine.css?v=1','ag2ConsoleRefine']
+    ['console-refine.css?v=1','ag2ConsoleRefine'],
+    ['report-share.css?v=1','ag2ReportShare']
   ];
   for(const [href,key] of styles){
     if(document.querySelector(`link[data-${key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}]`))continue;
@@ -28,15 +29,20 @@ function ensureEnhancementStyles(){
 }
 ensureEnhancementStyles();
 
-function ensureRefinementRuntime(){
-  if(document.querySelector('script[data-ag2-console-refine]'))return;
+function ensureRuntimeScript(src,dataKey){
+  const selector=`script[data-${dataKey.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}]`;
+  if(document.querySelector(selector))return;
   const script=document.createElement('script');
-  script.src='console-refine.js?v=1';
+  script.src=src;
   script.defer=true;
-  script.dataset.ag2ConsoleRefine='1';
+  script.dataset[dataKey]='1';
   document.body.appendChild(script);
 }
-window.addEventListener('load',()=>requestAnimationFrame(ensureRefinementRuntime),{once:true});
+function ensureEnhancementRuntime(){
+  ensureRuntimeScript('console-refine.js?v=1','ag2ConsoleRefine');
+  ensureRuntimeScript('report-share.js?v=1','ag2ReportShare');
+}
+window.addEventListener('load',()=>requestAnimationFrame(ensureEnhancementRuntime),{once:true});
 
 if(safeGet(localStorage,PERSIST_KEY)==='1')safeSet(sessionStorage,LEGACY_AUTH_KEY,'1');
 else safeRemove(sessionStorage,LEGACY_AUTH_KEY);
