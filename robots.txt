@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /AG2DESITE/dev-console/
+Disallow: /dev-console/
