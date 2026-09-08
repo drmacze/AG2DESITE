@@ -11,6 +11,7 @@
 }
 .nav-section-label:first-child{margin-top:5px}
 .side-nav>.nav-item{margin-top:0!important}
+.side-nav>.nav-item:nth-child(5)::before,.side-nav>.nav-item:nth-child(7)::before{display:none!important}
 
 .access-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:8px!important;align-items:center!important}
 .secret-input-wrap{position:relative;min-width:0}
