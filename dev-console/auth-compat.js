@@ -13,14 +13,30 @@ function safeRemove(store,key){try{store.removeItem(key)}catch{}}
 async function digestHex(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 
 function ensureEnhancementStyles(){
-  if(document.querySelector('link[data-ag2-ui-enhancements]'))return;
-  const link=document.createElement('link');
-  link.rel='stylesheet';
-  link.href='ui-enhancements.css?v=1';
-  link.dataset.ag2UiEnhancements='1';
-  document.head.appendChild(link);
+  const styles=[
+    ['ui-enhancements.css?v=1','ag2UiEnhancements'],
+    ['console-refine.css?v=1','ag2ConsoleRefine']
+  ];
+  for(const [href,key] of styles){
+    if(document.querySelector(`link[data-${key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}]`))continue;
+    const link=document.createElement('link');
+    link.rel='stylesheet';
+    link.href=href;
+    link.dataset[key]='1';
+    document.head.appendChild(link);
+  }
 }
 ensureEnhancementStyles();
+
+function ensureRefinementRuntime(){
+  if(document.querySelector('script[data-ag2-console-refine]'))return;
+  const script=document.createElement('script');
+  script.src='console-refine.js?v=1';
+  script.defer=true;
+  script.dataset.ag2ConsoleRefine='1';
+  document.body.appendChild(script);
+}
+window.addEventListener('load',()=>requestAnimationFrame(ensureRefinementRuntime),{once:true});
 
 if(safeGet(localStorage,PERSIST_KEY)==='1')safeSet(sessionStorage,LEGACY_AUTH_KEY,'1');
 else safeRemove(sessionStorage,LEGACY_AUTH_KEY);
