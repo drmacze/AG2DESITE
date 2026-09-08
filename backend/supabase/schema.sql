@@ -1,5 +1,5 @@
--- Optional AG2 developer-console session backend.
--- Safe-by-default: users can only access their own rows.
+-- AG2 developer-console production session backend.
+-- Raw ContentLog/profiler/diagnostics files stay local; only summaries are stored remotely.
 create extension if not exists pgcrypto;
 
 create table if not exists public.ag2_debug_sessions (
@@ -8,7 +8,7 @@ create table if not exists public.ag2_debug_sessions (
   build text,
   device text,
   minecraft_version text,
-  artifact_summary jsonb not null default '{}'::jsonb,
+  artifact_summary jsonb not null default '[]'::jsonb,
   contentlog_summary jsonb,
   profile_summary jsonb,
   diagnostics_summary jsonb,
@@ -20,17 +20,32 @@ create index if not exists ag2_debug_sessions_user_created_idx
 
 alter table public.ag2_debug_sessions enable row level security;
 
+-- Remove broad default grants first. The browser may only SELECT/INSERT/DELETE
+-- and RLS limits every operation to auth.uid() = user_id.
+revoke all privileges on table public.ag2_debug_sessions from anon;
+revoke all privileges on table public.ag2_debug_sessions from authenticated;
+grant select, insert, delete on table public.ag2_debug_sessions to authenticated;
+
 drop policy if exists "debug sessions select own" on public.ag2_debug_sessions;
-create policy "debug sessions select own"
-  on public.ag2_debug_sessions for select
+drop policy if exists "ag2_debug_sessions_select_own" on public.ag2_debug_sessions;
+create policy "ag2_debug_sessions_select_own"
+  on public.ag2_debug_sessions
+  for select
+  to authenticated
   using (auth.uid() = user_id);
 
 drop policy if exists "debug sessions insert own" on public.ag2_debug_sessions;
-create policy "debug sessions insert own"
-  on public.ag2_debug_sessions for insert
+drop policy if exists "ag2_debug_sessions_insert_own" on public.ag2_debug_sessions;
+create policy "ag2_debug_sessions_insert_own"
+  on public.ag2_debug_sessions
+  for insert
+  to authenticated
   with check (auth.uid() = user_id);
 
 drop policy if exists "debug sessions delete own" on public.ag2_debug_sessions;
-create policy "debug sessions delete own"
-  on public.ag2_debug_sessions for delete
+drop policy if exists "ag2_debug_sessions_delete_own" on public.ag2_debug_sessions;
+create policy "ag2_debug_sessions_delete_own"
+  on public.ag2_debug_sessions
+  for delete
+  to authenticated
   using (auth.uid() = user_id);
