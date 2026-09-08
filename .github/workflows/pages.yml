@@ -25,6 +25,18 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      - name: Configure developer console auth
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('dev-console/index.html')
+          html = path.read_text(encoding='utf-8')
+          marker = '<script src="console.js?v=2"></script>'
+          auth = '<script src="auth-compat.js?v=1"></script>'
+          if auth not in html:
+              html = html.replace(marker, auth + '\n  ' + marker)
+          path.write_text(html, encoding='utf-8')
+          PY
       - name: Upload static site
         uses: actions/upload-pages-artifact@v4
         with:
