@@ -29,6 +29,7 @@ jobs:
           node --check dev-console/console.js
           node --check dev-console/auth-compat.js
           node --check dev-console/creator-debugger.js
+          node --check dev-console/backend-sync.js
           node --check dev-console/runtime-config.js
 
       - name: Setup Pages
@@ -44,8 +45,7 @@ jobs:
           import json, os
           from pathlib import Path
 
-          # The URL and publishable key are intentionally safe for browser use.
-          # Repository secrets can override them without changing the source.
+          # Public browser-safe defaults. Repository secrets can override them.
           default_url = "https://ydaeukhqwishlrjyfktk.supabase.co"
           default_key = "sb_publishable_XNXU6SVeM-D477Ymy1ORsw_4hCHOll9"
           url = os.getenv("AG2_SUPABASE_URL") or default_url
@@ -82,6 +82,15 @@ jobs:
           if creator_link not in html and nav_marker in html:
               html = html.replace(nav_marker, nav_marker + '\n        ' + creator_link)
           path.write_text(html, encoding='utf-8')
+
+          creator = Path('dev-console/creator-debugger.html')
+          creator_html = creator.read_text(encoding='utf-8')
+          creator_html = creator_html.replace('<script src="runtime-config.js?v=1"></script>', '<script src="runtime-config.js?v=2"></script>')
+          creator_marker = '<script src="creator-debugger.js?v=1"></script>'
+          backend_sync = '<script src="backend-sync.js?v=1"></script>'
+          if backend_sync not in creator_html:
+              creator_html = creator_html.replace(creator_marker, creator_marker + '\n  ' + backend_sync)
+          creator.write_text(creator_html, encoding='utf-8')
           PY
 
       - name: Upload static site
