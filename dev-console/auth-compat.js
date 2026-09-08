@@ -16,7 +16,9 @@ function ensureEnhancementStyles(){
   const styles=[
     ['ui-enhancements.css?v=1','ag2UiEnhancements'],
     ['console-refine.css?v=1','ag2ConsoleRefine'],
-    ['report-share.css?v=1','ag2ReportShare']
+    ['report-share.css?v=1','ag2ReportShare'],
+    ['development-cms.css?v=1','ag2DevelopmentCms'],
+    ['development-cms-connect.css?v=1','ag2DevelopmentCmsConnect']
   ];
   for(const [href,key] of styles){
     if(document.querySelector(`link[data-${key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}]`))continue;
@@ -41,6 +43,8 @@ function ensureRuntimeScript(src,dataKey){
 function ensureEnhancementRuntime(){
   ensureRuntimeScript('console-refine.js?v=1','ag2ConsoleRefine');
   ensureRuntimeScript('report-share.js?v=1','ag2ReportShare');
+  ensureRuntimeScript('development-cms.js?v=1','ag2DevelopmentCms');
+  ensureRuntimeScript('development-cms-connect.js?v=1','ag2DevelopmentCmsConnect');
 }
 window.addEventListener('load',()=>requestAnimationFrame(ensureEnhancementRuntime),{once:true});
 
@@ -117,7 +121,7 @@ function enhanceDropZone(){
 
 function installDocumentTitles(){
   const titles={
-    overview:'System Overview',console:'Live Console',crash:'Crash Analyzer',performance:'Performance',weapon:'Weapon Debug',inspector:'Error Inspector',builds:'Build Comparison',upload:'ContentLog'
+    overview:'System Overview',console:'Live Console',crash:'Crash Analyzer',performance:'Performance',weapon:'Weapon Debug',inspector:'Error Inspector',builds:'Build Comparison',upload:'ContentLog',development:'Development'
   };
   const set=name=>{if(titles[name])document.title=`${titles[name]} — DLAVIE DEV`};
   document.addEventListener('click',event=>{
