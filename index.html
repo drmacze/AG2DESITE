@@ -8,9 +8,24 @@
   <title>Actual Gun 2: Definitive Edition</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="media.css">
+  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body>
-  <nav class="nav">
+  <svg class="svg-defs" aria-hidden="true" width="0" height="0">
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v11m0 0 4-4m-4 4-4-4M5 19h14"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-bullet" viewBox="0 0 24 24"><path d="M8.2 19.5 4.5 15.8 14.8 5.5a3.4 3.4 0 0 1 4.8 4.8L9.3 20.6a.8.8 0 0 1-1.1 0Z"/><path d="m13 7 4 4"/></symbol>
+    <symbol id="i-crosshair" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.6 2.6 8.1 7 10 4.4-1.9 7-5.4 7-10V6l-7-3Z"/><path d="M9 12h6M12 9v6"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 2v3m6-3v3M9 19v3m6-3v3M2 9h3m-3 6h3m14-6h3m-3 6h3M10 10h4v4h-4z"/></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M4.2 18a9 9 0 1 1 15.6 0"/><path d="m12 12 4-4M7.5 17h9"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 0-2.1 5"/></symbol>
+    <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H3v5m13-5h5v5M8 21H3v-5m13 5h5v-5"/></symbol>
+  </svg>
+
+  <nav class="nav" aria-label="Primary navigation">
     <div class="wrap nav-inner">
       <a class="brand" href="#home" aria-label="Actual Gun 2 home">
         <span class="brand-main">ACTUAL GUN <b>2</b></span>
@@ -23,13 +38,22 @@
         <a href="#weapons">Weapons</a>
         <a href="#download">Download</a>
       </div>
-      <a class="btn btn-primary nav-download" href="#download">↓ Download</a>
-      <button class="menu-btn" aria-label="Open menu" aria-expanded="false">☰</button>
+      <a class="btn btn-primary nav-download" href="https://github.com/drmacze/AG2DEFINITIVE-EDITION/releases/latest/download/AG2_DLavie_Definitive_LATEST.mcaddon">
+        <svg><use href="#i-download"/></svg><span>Download</span>
+      </a>
+      <button class="menu-btn icon-btn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="mobileMenu">
+        <svg class="menu-open"><use href="#i-menu"/></svg><svg class="menu-close"><use href="#i-close"/></svg>
+      </button>
     </div>
   </nav>
 
   <div class="mobile-menu" id="mobileMenu">
-    <a href="#home">Home</a><a href="#features">Features</a><a href="#gallery">Gallery</a><a href="#weapons">Weapons</a><a href="#download">Download</a>
+    <a href="#home">Home</a>
+    <a href="#features">Features</a>
+    <a href="#gallery">Gallery</a>
+    <a href="#weapons">Weapons</a>
+    <a href="#download">Download</a>
+    <a class="mobile-download" href="https://github.com/drmacze/AG2DEFINITIVE-EDITION/releases/latest/download/AG2_DLavie_Definitive_LATEST.mcaddon"><svg><use href="#i-download"/></svg>Download AG2: DE</a>
   </div>
 
   <header class="hero" id="home">
@@ -40,14 +64,28 @@
         <h1>Actual Gun <span>2</span></h1>
         <div class="definitive">Definitive Edition</div>
         <div class="tagline">More Real Than Ever</div>
-        <p>A next-generation weapon experience for Minecraft Bedrock. Rebuilt around cleaner handling, immersive combat, refined systems, and a more cohesive visual identity.</p>
+        <p>A next-generation weapon experience for Minecraft Bedrock, rebuilt around refined handling, immersive combat and a cohesive visual identity.</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="#download">↓ Download Now</a>
-          <a class="btn btn-ghost" href="#gallery">▶ View Showcase</a>
+          <a class="btn btn-primary" href="https://github.com/drmacze/AG2DEFINITIVE-EDITION/releases/latest/download/AG2_DLavie_Definitive_LATEST.mcaddon">
+            <svg><use href="#i-download"/></svg><span>Download Now</span>
+          </a>
+          <a class="btn btn-ghost" href="#gallery"><span>View Showcase</span><svg><use href="#i-arrow"/></svg></a>
         </div>
-        <div class="hero-meta"><span>Minecraft Bedrock</span><i></i><span>Definitive Edition</span><i></i><span>Free</span></div>
+        <div class="hero-meta"><span>Minecraft Bedrock</span><i></i><span>v3.6.0</span><i></i><span>Free</span></div>
       </div>
-      <div class="hero-visual" aria-label="Actual Gun 2 hero artwork">
+
+      <div class="hero-visual" aria-label="Interactive Glock 18 model">
+        <div class="model-stage">
+          <model-viewer id="heroModel" src="assets/models/glock18.glb" alt="Interactive 3D Glock 18 model from Actual Gun 2" camera-controls auto-rotate auto-rotate-delay="1200" rotation-per-second="8deg" interaction-prompt="none" shadow-intensity="0.8" shadow-softness="0.9" exposure="1.05" camera-orbit="28deg 72deg 120%" min-camera-orbit="auto 45deg 80%" max-camera-orbit="auto 100deg 180%" touch-action="pan-y">
+            <div slot="poster" class="model-loading">Loading 3D weapon…</div>
+          </model-viewer>
+          <div class="model-glow" aria-hidden="true"></div>
+          <div class="model-toolbar">
+            <span class="model-hint"><svg><use href="#i-rotate"/></svg>Drag to rotate</span>
+            <button class="viewer-reset icon-btn" type="button" aria-label="Reset 3D view" title="Reset 3D view"><svg><use href="#i-rotate"/></svg></button>
+          </div>
+          <div class="model-label"><span>Interactive model</span><strong>GLOCK 18</strong></div>
+        </div>
         <div class="side-copy">REAL<br>WEAPONS<br>REAL<br>TACTICS<br>BEYOND<br>SURVIVAL</div>
       </div>
     </div>
@@ -55,11 +93,11 @@
 
   <section class="feature-strip" id="features">
     <div class="wrap feature-grid">
-      <article><span class="ico">◢</span><div><strong>Realistic Weapons</strong><small>Detailed models & animation</small></div></article>
-      <article><span class="ico">◎</span><div><strong>Tactical Combat</strong><small>ADS, recoil, attachments</small></div></article>
-      <article><span class="ico">▣</span><div><strong>Immersive Systems</strong><small>Armor, healing, night vision</small></div></article>
-      <article><span class="ico">◉</span><div><strong>Advanced NPC AI</strong><small>Smarter encounter systems</small></div></article>
-      <article><span class="ico">✦</span><div><strong>Optimized</strong><small>Responsive & lightweight</small></div></article>
+      <article><span class="ico"><svg><use href="#i-bullet"/></svg></span><div><strong>Realistic Weapons</strong><small>Detailed models & animation</small></div></article>
+      <article><span class="ico"><svg><use href="#i-crosshair"/></svg></span><div><strong>Tactical Combat</strong><small>ADS, recoil, attachments</small></div></article>
+      <article><span class="ico"><svg><use href="#i-shield"/></svg></span><div><strong>Immersive Systems</strong><small>Armor, healing, night vision</small></div></article>
+      <article><span class="ico"><svg><use href="#i-cpu"/></svg></span><div><strong>Advanced NPC AI</strong><small>Smarter encounter systems</small></div></article>
+      <article><span class="ico"><svg><use href="#i-gauge"/></svg></span><div><strong>Optimized</strong><small>Responsive & lightweight</small></div></article>
     </div>
   </section>
 
@@ -70,12 +108,12 @@
           <span class="kicker">Showcase</span>
           <h2>Built for a<br>realer battle</h2>
           <p>From detailed weapon presentation to immersive environments, Actual Gun 2: Definitive Edition is designed as one consistent, premium Bedrock experience.</p>
-          <a class="btn btn-ghost" href="#gallery">View Gallery →</a>
+          <button class="btn btn-ghost gallery-launch" type="button"><span>Open Gallery</span><svg><use href="#i-expand"/></svg></button>
         </div>
         <div class="gallery-grid">
-          <figure class="shot shot-main"><figcaption>Real weapons<br>in a new world</figcaption></figure>
-          <figure class="shot shot-gear"><figcaption>Tactical Gear</figcaption></figure>
-          <figure class="shot shot-env"><figcaption>Dynamic Environments</figcaption></figure>
+          <button class="shot shot-main" type="button" data-gallery-index="0" aria-label="Open Real Weapons gallery image"><figcaption>Real weapons<br>in a new world</figcaption><span class="shot-expand"><svg><use href="#i-expand"/></svg></span></button>
+          <button class="shot shot-gear" type="button" data-gallery-index="1" aria-label="Open Tactical Gear gallery image"><figcaption>Tactical Gear</figcaption><span class="shot-expand"><svg><use href="#i-expand"/></svg></span></button>
+          <button class="shot shot-env" type="button" data-gallery-index="2" aria-label="Open Dynamic Environments gallery image"><figcaption>Dynamic Environments</figcaption><span class="shot-expand"><svg><use href="#i-expand"/></svg></span></button>
         </div>
       </div>
     </section>
@@ -84,22 +122,26 @@
       <div class="wrap">
         <div class="weapons-heading">
           <div><span class="kicker">Featured</span><h2>Iconic Weapons</h2></div>
-          <p>A focused arsenal presented with a clean, high-contrast interface built for desktop and mobile.</p>
+          <p>Select a weapon to highlight it. The arsenal is optimized for horizontal swipe on mobile.</p>
         </div>
-        <div class="weapon-row">
-          <article class="weapon-card" style="--img:url('assets/glock.webp')"><div><strong>GLOCK 17</strong><small>Pistol</small></div></article>
-          <article class="weapon-card active" style="--img:url('assets/m4a1.webp')"><div><strong>M4A1</strong><small>Assault Rifle</small></div></article>
-          <article class="weapon-card" style="--img:url('assets/ak74.webp')"><div><strong>AK-74</strong><small>Assault Rifle</small></div></article>
-          <article class="weapon-card" style="--img:url('assets/awm.webp')"><div><strong>AWM</strong><small>Sniper Rifle</small></div></article>
-          <article class="weapon-card" style="--img:url('assets/mp5.webp')"><div><strong>MP5</strong><small>SMG</small></div></article>
+        <div class="weapon-row" role="list" aria-label="Featured weapons">
+          <button class="weapon-card active" type="button" data-weapon="GLOCK 18" data-type="Pistol" style="--img:url('assets/glock.webp')"><div><strong>GLOCK 18</strong><small>Pistol</small></div></button>
+          <button class="weapon-card" type="button" data-weapon="M4A1" data-type="Assault Rifle" style="--img:url('assets/m4a1.webp')"><div><strong>M4A1</strong><small>Assault Rifle</small></div></button>
+          <button class="weapon-card" type="button" data-weapon="AK-74" data-type="Assault Rifle" style="--img:url('assets/ak74.webp')"><div><strong>AK-74</strong><small>Assault Rifle</small></div></button>
+          <button class="weapon-card" type="button" data-weapon="AWM" data-type="Sniper Rifle" style="--img:url('assets/awm.webp')"><div><strong>AWM</strong><small>Sniper Rifle</small></div></button>
+          <button class="weapon-card" type="button" data-weapon="MP5" data-type="SMG" style="--img:url('assets/mp5.webp')"><div><strong>MP5</strong><small>SMG</small></div></button>
         </div>
+        <div class="weapon-status" aria-live="polite"><span>Selected weapon</span><strong id="selectedWeapon">GLOCK 18</strong><i></i><small id="selectedType">Pistol</small></div>
       </div>
     </section>
 
     <section class="join" id="download">
       <div class="wrap join-inner">
-        <div><span class="kicker">Get it now</span><h2>Join the battle</h2><p>Experience Actual Gun 2: Definitive Edition for Minecraft Bedrock.</p></div>
-        <div class="download-block"><a class="btn btn-primary" href="https://github.com/drmacze/AG2DEFINITIVE-EDITION/releases/latest">↓ Download Actual Gun 2: DE</a><small>Free · Minecraft Bedrock</small></div>
+        <div><span class="kicker">Get it now</span><h2>Join the battle</h2><p>Download the latest stable release for Minecraft Bedrock.</p></div>
+        <div class="download-block">
+          <a class="btn btn-primary" href="https://github.com/drmacze/AG2DEFINITIVE-EDITION/releases/latest/download/AG2_DLavie_Definitive_LATEST.mcaddon"><svg><use href="#i-download"/></svg><span>Download Actual Gun 2: DE</span></a>
+          <small>Free · Minecraft Bedrock · v3.6.0</small>
+        </div>
       </div>
     </section>
   </main>
@@ -107,10 +149,17 @@
   <footer>
     <div class="wrap footer-inner">
       <a class="brand" href="#home"><span class="brand-main">ACTUAL GUN <b>2</b></span><span class="brand-sub">DEFINITIVE EDITION</span></a>
-      <div class="footer-links"><a href="#features">Features</a><a href="#gallery">Gallery</a><a href="#weapons">Weapons</a><a href="https://github.com/drmacze/AG2DESITE">GitHub</a></div>
+      <div class="footer-links"><a href="#features">Features</a><a href="#gallery">Gallery</a><a href="#weapons">Weapons</a><a href="https://github.com/drmacze/AG2DESITE" target="_blank" rel="noopener">GitHub</a></div>
       <span class="footer-tag">REAL WEAPONS. REAL TACTICS.<br>BEYOND SURVIVAL.</span>
     </div>
   </footer>
+
+  <dialog class="gallery-modal" id="galleryModal" aria-label="AG2 showcase gallery">
+    <button class="modal-close icon-btn" type="button" aria-label="Close gallery"><svg><use href="#i-close"/></svg></button>
+    <button class="modal-nav modal-prev icon-btn" type="button" aria-label="Previous image"><svg class="flip"><use href="#i-arrow"/></svg></button>
+    <figure><img id="galleryImage" alt=""><figcaption id="galleryCaption"></figcaption></figure>
+    <button class="modal-nav modal-next icon-btn" type="button" aria-label="Next image"><svg><use href="#i-arrow"/></svg></button>
+  </dialog>
 
   <script src="script.js"></script>
 </body>
