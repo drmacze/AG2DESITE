@@ -43,12 +43,20 @@ jobs:
           python3 - <<'PY'
           import json, os
           from pathlib import Path
+
+          # The URL and publishable key are intentionally safe for browser use.
+          # Repository secrets can override them without changing the source.
+          default_url = "https://ydaeukhqwishlrjyfktk.supabase.co"
+          default_key = "sb_publishable_XNXU6SVeM-D477Ymy1ORsw_4hCHOll9"
+          url = os.getenv("AG2_SUPABASE_URL") or default_url
+          key = os.getenv("AG2_SUPABASE_PUBLISHABLE_KEY") or default_key
           cfg = {
               "backend": {
-                  "enabled": bool(os.getenv("AG2_SUPABASE_URL") and os.getenv("AG2_SUPABASE_PUBLISHABLE_KEY")),
+                  "enabled": bool(url and key),
                   "provider": "supabase",
-                  "url": os.getenv("AG2_SUPABASE_URL", ""),
-                  "publishableKey": os.getenv("AG2_SUPABASE_PUBLISHABLE_KEY", ""),
+                  "url": url,
+                  "publishableKey": key,
+                  "ingestFunction": "debug-ingest",
               },
               "accessHash": os.getenv("DEV_CONSOLE_ACCESS_SHA256", ""),
           }
@@ -61,8 +69,9 @@ jobs:
           path = Path('dev-console/index.html')
           html = path.read_text(encoding='utf-8')
           marker = '<script src="console.js?v=2"></script>'
-          runtime = '<script src="runtime-config.js?v=1"></script>'
+          runtime = '<script src="runtime-config.js?v=2"></script>'
           auth = '<script src="auth-compat.js?v=2"></script>'
+          html = html.replace('<script src="runtime-config.js?v=1"></script>', runtime)
           if runtime not in html:
               html = html.replace(marker, runtime + '\n  ' + auth + '\n  ' + marker)
           elif auth not in html:
