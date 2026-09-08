@@ -8,7 +8,6 @@
   <title>Actual Gun 2: Definitive Edition</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="media.css">
-  <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
 </head>
 <body>
   <svg class="svg-defs" aria-hidden="true" width="0" height="0">
@@ -76,9 +75,8 @@
 
       <div class="hero-visual" aria-label="Interactive Glock 18 model">
         <div class="model-stage">
-          <model-viewer id="heroModel" src="assets/models/glock18.glb" alt="Interactive 3D Glock 18 model from Actual Gun 2" camera-controls auto-rotate auto-rotate-delay="1200" rotation-per-second="8deg" interaction-prompt="none" shadow-intensity="0.8" shadow-softness="0.9" exposure="1.05" camera-orbit="28deg 72deg 120%" min-camera-orbit="auto 45deg 80%" max-camera-orbit="auto 100deg 180%" touch-action="pan-y">
-            <div slot="poster" class="model-loading">Loading 3D weapon…</div>
-          </model-viewer>
+          <canvas id="weaponCanvas" aria-label="Interactive 3D Glock 18 model from Actual Gun 2"></canvas>
+          <noscript><div class="model-loading">Enable JavaScript to use the 3D viewer.</div></noscript>
           <div class="model-glow" aria-hidden="true"></div>
           <div class="model-toolbar">
             <span class="model-hint"><svg><use href="#i-rotate"/></svg>Drag to rotate</span>
@@ -161,6 +159,7 @@
     <button class="modal-nav modal-next icon-btn" type="button" aria-label="Next image"><svg><use href="#i-arrow"/></svg></button>
   </dialog>
 
+  <script type="module" src="viewer.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
