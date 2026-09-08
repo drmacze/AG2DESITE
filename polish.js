@@ -1,4 +1,9 @@
 (()=>{
+  const loader=document.getElementById('modelLoader');
+  if(loader&&!loader.querySelector('.ag2-loader-track')){
+    loader.innerHTML='<div class="ag2-loader-head"><span class="ag2-loader-dot"></span><strong>AG2 3D REMASTER</strong></div><div class="ag2-loader-track"><i id="ag2LoaderBar"></i></div><div class="ag2-loader-meta"><span id="ag2LoaderStatus">Preparing viewer</span><b id="ag2LoaderPercent">0%</b></div>';
+  }
+
   const gsap=window.gsap, ScrollTrigger=window.ScrollTrigger;
   const progress=document.createElement('div'); progress.className='scroll-progress'; document.body.appendChild(progress);
   if(!gsap||!ScrollTrigger) return;
