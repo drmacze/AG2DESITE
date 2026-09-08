@@ -78,6 +78,21 @@ function attachClearButton(input){
   sync();
 }
 
+function enhanceDropZone(){
+  const zone=document.getElementById('dropZone');
+  const picker=document.getElementById('fileInput');
+  const status=document.getElementById('parseStatus');
+  if(status){status.setAttribute('role','status');status.setAttribute('aria-live','polite');status.setAttribute('aria-atomic','true')}
+  if(!zone||!picker)return;
+  zone.setAttribute('role','button');
+  zone.setAttribute('tabindex','0');
+  zone.setAttribute('aria-label','Choose a Minecraft ContentLog file');
+  zone.addEventListener('keydown',event=>{
+    if(event.isComposing)return;
+    if(event.key==='Enter'||event.key===' '){event.preventDefault();picker.click()}
+  });
+}
+
 function installDocumentTitles(){
   const titles={
     overview:'System Overview',console:'Live Console',crash:'Crash Analyzer',performance:'Performance',weapon:'Weapon Debug',inspector:'Error Inspector',builds:'Build Comparison',upload:'ContentLog'
@@ -129,6 +144,7 @@ function boot(){
   enhanceSecretField(input);
   attachClearButton(document.getElementById('globalSearch'));
   attachClearButton(document.getElementById('consoleSearch'));
+  enhanceDropZone();
   installDocumentTitles();
   installDrawerKeyboard();
 
