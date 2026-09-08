@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#050505">
+  <meta name="description" content="Actual Gun 2: Definitive Edition development status, changelog, announcements and upcoming updates.">
+  <title>Development · Actual Gun 2: Definitive Edition</title>
+  <link rel="stylesheet" href="development.css?v=1">
+</head>
+<body>
+  <div class="ambient" aria-hidden="true"><i></i><i></i><i></i></div>
+  <nav class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="../"><span>ACTUAL GUN <b>2</b></span><small>DEFINITIVE EDITION</small></a>
+      <div class="nav-links"><a href="../">Home</a><a href="../#features">Features</a><a href="../#gallery">Gallery</a><a class="active" href="./">Development</a></div>
+      <a class="download" href="https://github.com/drmacze/AG2DEFINITIVE-EDITION/releases/latest/download/AG2_DLavie_Definitive_LATEST.mcaddon">Download</a>
+      <button class="menu" id="menuBtn" aria-label="Open menu">☰</button>
+    </div>
+  </nav>
+  <div class="mobile-nav" id="mobileNav"><a href="../">Home</a><a href="../#features">Features</a><a href="../#gallery">Gallery</a><a href="./">Development</a></div>
+
+  <header class="hero wrap">
+    <div class="hero-copy"><p class="eyebrow">PROJECT DEVELOPMENT</p><h1>Built in public.<br><span>Debugged in private.</span></h1><p>Track what is being built, what changed, what is coming next and the latest public diagnostic snapshot from AG2 development.</p></div>
+    <div class="hero-status" id="heroStatus"><span>LIVE PROJECT STATUS</span><strong>Loading development feed…</strong><small>Synced from DLAVIE DEV Console</small></div>
+  </header>
+
+  <main class="wrap">
+    <section class="diag-card" id="diagnosticSection">
+      <div class="section-title"><div><p class="eyebrow">LATEST DEVELOPMENT LOG</p><h2>Public diagnostic snapshot</h2></div><span class="privacy">PRIVATE LOG CONTENT</span></div>
+      <div id="diagnosticSnapshot" class="diag-empty">No public diagnostic snapshot has been published yet.</div>
+      <p class="privacy-note">Only aggregate diagnostics are shown here. Raw ContentLog lines, file contents, source paths and internal debugging details remain private inside Developer Console.</p>
+    </section>
+
+    <section class="section" id="inDevelopment">
+      <div class="section-title"><div><p class="eyebrow red">CURRENTLY IN DEVELOPMENT</p><h2>What we're building now</h2></div><a href="#nextUpdate">Next update ↓</a></div>
+      <div class="featured-feed" id="developmentFeed"><div class="empty">No active development post yet.</div></div>
+    </section>
+
+    <section class="section" id="nextUpdate">
+      <div class="section-title"><div><p class="eyebrow gold">NEXT UPDATE</p><h2>Planned and ready</h2></div></div>
+      <div class="card-grid" id="nextUpdateFeed"><div class="empty">No next update has been published yet.</div></div>
+    </section>
+
+    <section class="section" id="newUpdate">
+      <div class="section-title"><div><p class="eyebrow green">NEW UPDATE</p><h2>Latest releases</h2></div></div>
+      <div class="card-grid" id="newUpdateFeed"><div class="empty">No release post has been published yet.</div></div>
+    </section>
+
+    <section class="section split-section">
+      <div><div class="section-title"><div><p class="eyebrow">ANNOUNCEMENTS</p><h2>Project notices</h2></div></div><div class="stack" id="announcementFeed"><div class="empty">No announcements.</div></div></div>
+      <div><div class="section-title"><div><p class="eyebrow">CHANGELOG</p><h2>Version history</h2></div></div><div class="timeline" id="changelogFeed"><div class="empty">No changelog entries.</div></div></div>
+    </section>
+  </main>
+
+  <footer><div class="wrap"><div class="brand"><span>ACTUAL GUN <b>2</b></span><small>DEFINITIVE EDITION</small></div><p>Development information is synchronized from the private AG2 Developer Console.</p><a href="../">Back to main site</a></div></footer>
+
+  <template id="commentTemplate"><div class="comments"><div class="comments-head"><strong>Development discussion</strong><span data-comment-count>0 comments</span></div><div class="comment-list" data-comments></div><form class="comment-form" data-comment-form><div class="form-row"><input name="name" maxlength="32" placeholder="Your name" required><button type="submit">Post comment</button></div><textarea name="body" maxlength="1200" rows="3" placeholder="Comment on this update…" required></textarea><small>Comments are public. Please keep feedback relevant to this development post.</small></form></div></template>
+  <script src="development.js?v=1"></script>
+</body>
+</html>
