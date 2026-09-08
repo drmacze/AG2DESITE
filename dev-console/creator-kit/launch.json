@@ -1,0 +1,14 @@
+{
+  "version": "0.3.0",
+  "configurations": [
+    {
+      "type": "minecraft-js",
+      "request": "attach",
+      "name": "Debug AG2 with Minecraft",
+      "mode": "connect",
+      "targetModuleUuid": "ec128ecf-402a-4361-a786-c8f39fa44e2c",
+      "localRoot": "${workspaceFolder}/",
+      "port": 19144
+    }
+  ]
+}
