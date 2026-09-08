@@ -27,13 +27,7 @@ const observer=new IntersectionObserver(entries=>{
 },{rootMargin:'-35% 0px -55% 0px'});
 sections.forEach(s=>observer.observe(s));
 
-const viewer=document.getElementById('heroModel');
-document.querySelector('.viewer-reset')?.addEventListener('click',()=>{
-  if(!viewer)return;
-  viewer.cameraOrbit='28deg 72deg 120%';
-  viewer.fieldOfView='30deg';
-  viewer.jumpCameraToGoal?.();
-});
+document.querySelector('.viewer-reset')?.addEventListener('click',()=>window.dispatchEvent(new Event('ag2-reset-viewer')));
 
 const cards=[...document.querySelectorAll('.weapon-card')];
 const selectedWeapon=document.getElementById('selectedWeapon');
