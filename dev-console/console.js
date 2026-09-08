@@ -1,241 +1,104 @@
 (()=>{
 'use strict';
-
 const ACCESS_HASH='149471c729bc10501bab859a88852e4c88f3fc0401e76e90736e2d3632bd5eb4';
 const AUTH_KEY='ag2.dev.auth.v1';
-const BUILD_KEY='ag2.dev.builds.v1';
+const BUILD_KEY='ag2.dev.builds.v2';
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:0;
+const fmt=n=>Number(n||0).toLocaleString();
+const fmtMs=n=>`${Number(n||0).toFixed(n>=10?0:1)} ms`;
+const state={entries:[],groups:[],groupMap:new Map(),categoryCounts:new Map(),severityCounts:{CRITICAL:0,ERROR:0,WARNING:0,INFO:0},performance:{watchdogs:[],scriptTicks:[],slowEvents:0,entityQueries:0,projectile:0,attachment:0,ads:0,recoil:0},weapons:new Map(),file:{name:'—',size:0,lines:0},activeFilter:'ALL',activeGroup:null,criticalFirst:false};
+const categories=['SCRIPT','ANIMATION','MOLANG','PARTICLE','RECIPE','BLOCK','ITEM','RESOURCE PACK','WEAPON','INFO'];
+const channels=['ALL','CRITICAL','ERROR','WARNING','INFO','SCRIPT','ANIMATION','MOLANG','PARTICLE','RECIPE','BLOCK','RESOURCE PACK','WEAPON'];
+const palette={CRITICAL:'#ef5964',ERROR:'#e77a78',WARNING:'#d3aa61',INFO:'#5ca9a2',SCRIPT:'#9682ca',ANIMATION:'#cf9c60',MOLANG:'#d17d8a',PARTICLE:'#55b7ac','RESOURCE PACK':'#709bcf',BLOCK:'#b3926b',ITEM:'#8b9fc6',RECIPE:'#c5976f',WEAPON:'#61c59e'};
 
-const state={
-  entries:[],groups:[],groupMap:new Map(),categoryCounts:new Map(),
-  performance:{watchdogs:[],scriptTicks:[],slowEvents:0,entityQueries:0,projectile:0,attachment:0,ads:0,recoil:0},
-  weapons:new Map(),file:{name:'—',size:0,lines:0},activeFilter:'ALL',activeGroup:null
-};
-
-const channelOrder=['ALL','CRITICAL','ERROR','WARNING','INFO','SCRIPT','ANIMATION','MOLANG','PARTICLE','RECIPE','BLOCK','RESOURCE PACK','ITEM','WEAPON'];
-const subsystemDefs=[
-  ['Script Runtime',['SCRIPT']],['Resource Pack',['RESOURCE PACK']],['Behavior Pack',['BLOCK','ITEM','RECIPE']],
-  ['PBR',['RESOURCE PACK']],['Animation',['ANIMATION','MOLANG']],['Weapon Runtime',['WEAPON','SCRIPT']]
-];
-
-function escapeHTML(value){return String(value??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
-function formatBytes(bytes){if(!bytes)return'0 B';const units=['B','KB','MB','GB'];let i=0,n=bytes;while(n>=1024&&i<units.length-1){n/=1024;i++;}return`${n.toFixed(i?1:0)} ${units[i]}`;}
-function avg(arr){return arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:0;}
-function nowStamp(){return new Date().toISOString();}
-function digestHex(text){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)).then(b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''));}
-
-// Access gate. Only a SHA-256 digest is shipped; the actual developer key is not in the repository.
+async function digestHex(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 const accessShell=$('#accessShell'),appShell=$('#appShell'),accessForm=$('#accessForm'),accessInput=$('#accessKey'),accessError=$('#accessError');
-let failedAttempts=0,lockUntil=0;
-function unlock(){accessShell.hidden=true;accessShell.style.display='none';appShell.hidden=false;renderAll();}
-function lock(){sessionStorage.removeItem(AUTH_KEY);location.reload();}
+let failed=0,lockUntil=0;
+function unlock(){accessShell.hidden=true;accessShell.style.display='none';appShell.hidden=false;renderAll();requestAnimationFrame(redrawCharts)}
+function lock(){sessionStorage.removeItem(AUTH_KEY);location.reload()}
 if(sessionStorage.getItem(AUTH_KEY)==='1')unlock();
-accessForm?.addEventListener('submit',async e=>{
-  e.preventDefault();
-  if(Date.now()<lockUntil){accessError.textContent='Temporarily locked. Try again shortly.';return;}
-  const raw=accessInput.value.trim();
-  if(!raw){accessError.textContent='Access key required.';return;}
-  const hash=await digestHex(raw);
-  if(hash===ACCESS_HASH){sessionStorage.setItem(AUTH_KEY,'1');accessInput.value='';failedAttempts=0;unlock();return;}
-  failedAttempts++;accessInput.value='';accessError.textContent='Access denied.';
-  if(failedAttempts>=5){lockUntil=Date.now()+30000;failedAttempts=0;accessError.textContent='Too many attempts. Locked for 30 seconds.';}
-});
+accessForm?.addEventListener('submit',async e=>{e.preventDefault();if(Date.now()<lockUntil){accessError.textContent='Temporarily locked. Try again shortly.';return}const raw=accessInput.value.trim();if(!raw){accessError.textContent='Access key required.';return}const hash=await digestHex(raw);if(hash===ACCESS_HASH){sessionStorage.setItem(AUTH_KEY,'1');failed=0;accessInput.value='';unlock();return}failed++;accessInput.value='';accessError.textContent='Access denied.';if(failed>=5){failed=0;lockUntil=Date.now()+30000;accessError.textContent='Too many attempts. Locked for 30 seconds.'}});
 $('#logoutBtn')?.addEventListener('click',lock);
 
-// Navigation
-const titles={overview:['01','SYSTEM OVERVIEW'],console:['02','LIVE CONSOLE'],crash:['03','CRASH ANALYZER'],performance:['04','PERFORMANCE'],weapon:['05','WEAPON DEBUG'],inspector:['06','ERROR INSPECTOR'],builds:['07','BUILD COMPARISON'],upload:['08','CONTENTLOG ANALYZER']};
-function setView(name){
-  $$('.view').forEach(v=>v.classList.toggle('active',v.dataset.panel===name));
-  $$('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===name));
-  const meta=titles[name]||['--','DEV CONSOLE'];$('#viewCode').textContent=meta[0];$('#viewTitle').textContent=meta[1];
-  $('#sidebar')?.classList.remove('open');window.scrollTo({top:0,behavior:'smooth'});
-}
+function setView(name){$$('.view').forEach(v=>v.classList.toggle('active',v.dataset.panel===name));$$('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===name));closeSidebar();window.scrollTo({top:0,behavior:'auto'});if(name==='overview'||name==='performance')requestAnimationFrame(redrawCharts)}
 $$('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 $$('[data-jump]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.jump)));
-$('#mobileMenu')?.addEventListener('click',()=>$('#sidebar')?.classList.toggle('open'));
-document.addEventListener('click',e=>{if(innerWidth<=820&&$('#sidebar')?.classList.contains('open')&&!$('#sidebar').contains(e.target)&&!$('#mobileMenu').contains(e.target))$('#sidebar').classList.remove('open');});
+function openSidebar(){$('#sidebar')?.classList.add('open');$('#sidebarScrim')?.classList.add('show')}
+function closeSidebar(){$('#sidebar')?.classList.remove('open');$('#sidebarScrim')?.classList.remove('show')}
+$('#mobileMenu')?.addEventListener('click',openSidebar);$('#sideClose')?.addEventListener('click',closeSidebar);$('#sidebarScrim')?.addEventListener('click',closeSidebar);
 
-function timestampOf(line){
-  const bracket=line.match(/\[(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\]/);if(bracket)return bracket[1];
-  const iso=line.match(/\b(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)\b/);return iso?iso[1]:'—';
-}
-function sourceOf(line){
-  const m=line.match(/([\w@./-]+\.(?:json|js|ts|mcfunction|material|lang|png|tga|entity|animation|controller))(?:[:(](\d+))?/i);
-  return m?m[1]+(m[2]?`:${m[2]}`:''):'—';
-}
-function categoryOf(line){
-  const s=line.toLowerCase();
-  if(/watchdog|script runtime|javascript|@minecraft|typeerror|referenceerror|syntaxerror|event handler/.test(s))return'SCRIPT';
-  if(/animation|anim_controller|animation_controller|state machine|reload_start|animation state/.test(s))return'ANIMATION';
-  if(/molang|unknown token|query\.|variable\.|math\./.test(s))return'MOLANG';
-  if(/particle|billboard|emitter|particle_effect/.test(s))return'PARTICLE';
-  if(/recipe|crafting|furnace recipe/.test(s))return'RECIPE';
-  if(/block schema|block component|minecraft:block|block permutation|block definition/.test(s))return'BLOCK';
-  if(/item component|minecraft:item|item definition|invalid item/.test(s))return'ITEM';
-  if(/resource pack|texture|render_controller|geometry\.|material|pbr|normal map|roughness|metalness|attachable/.test(s))return'RESOURCE PACK';
-  if(/weapon|gun|recoil|ads\b|ammo|chamber|attachment|projectile|laser|bipod|wall collision/.test(s))return'WEAPON';
-  return'INFO';
-}
-function severityOf(line){
-  const s=line.toLowerCase();
-  if(/fatal|force[- ]?close|crash|terminated|watchdog.*(?:terminate|kill|fatal)|out of memory/.test(s))return'CRITICAL';
-  if(/\berror\b|exception|failed|failure|invalid|not found|missing|unknown token|cannot|could not|schema error/.test(s))return'ERROR';
-  if(/\bwarn(?:ing)?\b|deprecated|fallback|ignored/.test(s))return'WARNING';
-  return'INFO';
-}
-function displayLevel(sev,cat){return sev!=='INFO'?sev:(cat!=='INFO'?cat:'INFO');}
-function normalizeKey(line,cat){
-  let s=line.toLowerCase().replace(/\[(?:\d{2}:){2}\d{2}(?:\.\d+)?\]/g,'').replace(/\b\d{4}-\d{2}-\d{2}[t ]\d{2}:\d{2}:\d{2}(?:\.\d+)?z?\b/g,'');
-  s=s.replace(/0x[0-9a-f]+/gi,'<hex>').replace(/\bline\s+\d+\b/gi,'line <n>').replace(/:\d+\b/g,':<n>').replace(/\b\d+(?:\.\d+)?\s*ms\b/gi,'<ms>').replace(/\b\d{4,}\b/g,'<n>').replace(/\s+/g,' ').trim();
-  return`${cat}|${s.slice(0,420)}`;
-}
-function likelyFix(line,cat){
-  const s=line.toLowerCase();
-  if(/reload_start\w*.*not found|state.*not found/.test(s))return'Transition references an animation-controller state that does not exist. Add the missing state or update the transition target to the current state name.';
-  if(cat==='MOLANG'&&/unknown token|syntax/.test(s))return'Validate the Molang expression around the reported token. Check unmatched operators/brackets and confirm the query is valid in this animation context.';
-  if(cat==='ANIMATION')return'Check animation/controller identifiers, state names and resource-pack references. Confirm the referenced animation exists and is namespaced correctly.';
-  if(cat==='BLOCK')return'Validate the block JSON against the active Bedrock format version. Remove unsupported components and verify component placement and permutations.';
-  if(cat==='ITEM')return'Check item components against the target Bedrock version. Replace deprecated/invalid components and verify identifier namespaces.';
-  if(cat==='RECIPE')return'Validate recipe identifiers, ingredient/result IDs, tags and recipe format version. Confirm every referenced item exists.';
-  if(cat==='PARTICLE')return'Inspect the particle definition and emitter/billboard settings. Confirm referenced particle identifiers, materials and direction modes are valid.';
-  if(cat==='RESOURCE PACK')return'Confirm the referenced texture, geometry, material or attachable exists with exact casing and the correct namespace/path.';
-  if(cat==='SCRIPT'&&/watchdog/.test(s))return'Reduce work performed in one tick: batch entity queries, cache repeated lookups, limit projectile/attachment loops and spread expensive work across ticks.';
-  if(cat==='SCRIPT')return'Inspect the script stack/source reference. Guard undefined values, verify API availability for the target Bedrock version and isolate the failing event handler.';
-  if(cat==='WEAPON')return'Inspect the weapon runtime state and referenced profile. Verify weapon ID, attachment state, ammo/chamber values, recoil/ADS profile and event ordering.';
-  if(/not found|missing/.test(s))return'A referenced identifier or source file is missing. Verify exact path, namespace, casing and pack dependency order.';
-  return'Inspect the first occurrence and its source file. Fix the earliest root error before secondary errors that follow it.';
-}
-function parsePerformance(entry){
-  const s=entry.raw;
-  let m=s.match(/watchdog[^\d]{0,24}(\d+(?:\.\d+)?)\s*ms/i)||s.match(/(\d+(?:\.\d+)?)\s*ms[^\n]{0,30}watchdog/i);if(m)state.performance.watchdogs.push(Number(m[1]));
-  m=s.match(/(?:script\s*(?:tick|runtime)|tick time)[^\d]{0,20}(\d+(?:\.\d+)?)\s*ms/i);if(m)state.performance.scriptTicks.push(Number(m[1]));
-  if(/slow event|event handler.*(?:slow|took)|handler[^\d]{0,20}\d+(?:\.\d+)?\s*ms/i.test(s))state.performance.slowEvents++;
-  if(/entity quer(?:y|ies)|getentities|getplayers|dimension\.getentities/i.test(s))state.performance.entityQueries++;
-  if(/projectile/i.test(s))state.performance.projectile++;
-  if(/attachment|attachable/i.test(s))state.performance.attachment++;
-  if(/\bads\b|aim down sight/i.test(s))state.performance.ads++;
-  if(/recoil/i.test(s))state.performance.recoil++;
-}
-function weaponIdOf(line){const m=line.match(/(?:weapon(?:\s+id)?|gun(?:\s+id)?)\s*[:=]\s*([\w:.-]+)/i)||line.match(/\b(ag2:[\w.-]+)\b/i);return m?m[1]:null;}
-function field(line,label,regex){const m=line.match(regex);return m?m[1].trim():null;}
-function parseWeapon(entry){
-  if(entry.category!=='WEAPON')return;
-  const id=weaponIdOf(entry.raw)||'AG2_RUNTIME';let w=state.weapons.get(id);if(!w){w={id,skin:'—',attachments:new Set(),recoil:'—',adsFov:'—',handling:'—',laser:'—',bipod:'—',wallCollision:'—',ammo:'—',chamber:'—',events:[]};state.weapons.set(id,w);}
-  const s=entry.raw;const skin=field(s,'skin',/skin\s*[:=]\s*([^,;\]\s]+)/i);if(skin)w.skin=skin;
-  const att=field(s,'attachment',/attachment(?:s| active)?\s*[:=]\s*([^;\]]+)/i);if(att)att.split(/[,|]/).map(x=>x.trim()).filter(Boolean).forEach(x=>w.attachments.add(x));
-  const recoil=field(s,'recoil',/recoil(?: profile)?\s*[:=]\s*([^,;\]]+)/i);if(recoil)w.recoil=recoil;
-  const fov=field(s,'fov',/(?:ads\s*fov|fov\s*ads)\s*[:=]\s*([\d.]+)/i);if(fov)w.adsFov=fov;
-  const handling=field(s,'handling',/handling\s*[:=]\s*([^,;\]]+)/i);if(handling)w.handling=handling;
-  const laser=field(s,'laser',/laser\s*[:=]\s*([^,;\]]+)/i);if(laser)w.laser=laser;
-  const bipod=field(s,'bipod',/bipod\s*[:=]\s*([^,;\]]+)/i);if(bipod)w.bipod=bipod;
-  const wall=field(s,'wall',/wall collision\s*[:=]\s*([^,;\]]+)/i);if(wall)w.wallCollision=wall;
-  const ammo=field(s,'ammo',/(?:current\s*)?ammo\s*[:=]\s*([\d/.-]+)/i);if(ammo)w.ammo=ammo;
-  const chamber=field(s,'chamber',/chamber\s*[:=]\s*([^,;\]\s]+)/i);if(chamber)w.chamber=chamber;
-  w.events.push(entry);
-}
-function makeEntry(raw,index){
-  const severity=severityOf(raw),category=categoryOf(raw),level=displayLevel(severity,category),source=sourceOf(raw),time=timestampOf(raw);
-  return{raw,index,severity,category,level,source,time,key:normalizeKey(raw,category)};
-}
-function resetAnalysis(){
-  state.entries=[];state.groups=[];state.groupMap=new Map();state.categoryCounts=new Map();state.performance={watchdogs:[],scriptTicks:[],slowEvents:0,entityQueries:0,projectile:0,attachment:0,ads:0,recoil:0};state.weapons=new Map();state.activeGroup=null;
-}
-async function analyzeText(text,meta={}){
-  resetAnalysis();
-  const lines=text.replace(/\r\n?/g,'\n').split('\n').filter((l,i,a)=>l.trim()||i<a.length-1);state.file={name:meta.name||'Pasted ContentLog',size:meta.size||new Blob([text]).size,lines:lines.length};
-  setParseProgress(3,'Preparing parser');
-  const chunk=600;
-  for(let start=0;start<lines.length;start+=chunk){
-    const end=Math.min(lines.length,start+chunk);
-    for(let i=start;i<end;i++){
-      const raw=lines[i];if(!raw.trim())continue;const entry=makeEntry(raw,i+1);state.entries.push(entry);
-      const interesting=entry.severity!=='INFO'||entry.category!=='INFO';
-      if(interesting){
-        let g=state.groupMap.get(entry.key);if(!g){g={key:entry.key,category:entry.category,severity:entry.severity,count:0,source:entry.source,message:entry.raw,firstLine:entry.index,lastLine:entry.index,entries:[],fix:likelyFix(entry.raw,entry.category)};state.groupMap.set(entry.key,g);}
-        g.count++;g.lastLine=entry.index;if(g.entries.length<80)g.entries.push(entry);
-      }
-      state.categoryCounts.set(entry.category,(state.categoryCounts.get(entry.category)||0)+1);parsePerformance(entry);parseWeapon(entry);
-    }
-    setParseProgress(8+84*(end/Math.max(1,lines.length)),`Parsing ${end.toLocaleString()} / ${lines.length.toLocaleString()} lines`);
-    await new Promise(r=>setTimeout(r,0));
-  }
-  state.groups=[...state.groupMap.values()].sort((a,b)=>severityRank(b.severity)-severityRank(a.severity)||b.count-a.count);
-  setParseProgress(96,'Building diagnostics');await new Promise(r=>setTimeout(r,60));
-  renderAll();setParseProgress(100,'Analysis complete');
-  setTimeout(()=>setView('overview'),260);
-}
-function severityRank(s){return s==='CRITICAL'?4:s==='ERROR'?3:s==='WARNING'?2:1;}
+function timestampOf(line){const m=line.match(/\[(\d{2}:\d{2}:\d{2}(?:\.\d+)?)\]/);if(m)return m[1];const iso=line.match(/\b(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?Z?)\b/);return iso?iso[1]:'—'}
+function sourceOf(line){const m=line.match(/([\w@./\\:-]+\.(?:json|js|ts|mcfunction|material|lang|png|tga|entity|animation|controller|particle|recipe))(?:[:(](\d+))?/i);return m?m[1]+(m[2]?`:${m[2]}`:''):'—'}
+function categoryOf(line){const s=line.toLowerCase();if(/watchdog|script runtime|javascript|@minecraft|typeerror|referenceerror|syntaxerror|event handler|stack trace/.test(s))return'SCRIPT';if(/animation|anim_controller|animation_controller|state machine|reload_start|animation state/.test(s))return'ANIMATION';if(/molang|unknown token|query\.|variable\.|math\./.test(s))return'MOLANG';if(/particle|billboard|emitter|particle_effect/.test(s))return'PARTICLE';if(/recipe|crafting|furnace recipe/.test(s))return'RECIPE';if(/block schema|block component|minecraft:block|block permutation|block definition/.test(s))return'BLOCK';if(/item component|minecraft:item|item definition|invalid item/.test(s))return'ITEM';if(/resource pack|texture|render_controller|geometry\.|material|pbr|normal map|roughness|metalness|attachable/.test(s))return'RESOURCE PACK';if(/weapon|gun|recoil|\bads\b|aim down sight|ammo|chamber|attachment|projectile|laser|bipod|wall collision/.test(s))return'WEAPON';return'INFO'}
+function severityOf(line){const s=line.toLowerCase();if(/fatal|force[- ]?close|crash|terminated|watchdog.*(?:terminate|kill|fatal)|out of memory/.test(s))return'CRITICAL';if(/\berror\b|exception|failed|failure|invalid|not found|missing|unknown token|cannot|could not|schema error|syntax error/.test(s))return'ERROR';if(/\bwarn(?:ing)?\b|deprecated|fallback|ignored/.test(s))return'WARNING';return'INFO'}
+function normalizeKey(line,cat){return`${cat}|${line.toLowerCase().replace(/\[(?:\d{2}:){2}\d{2}(?:\.\d+)?\]/g,'').replace(/\b\d{4}-\d{2}-\d{2}[t ]\d{2}:\d{2}:\d{2}(?:\.\d+)?z?\b/g,'').replace(/0x[0-9a-f]+/gi,'<hex>').replace(/\bline\s+\d+\b/gi,'line <n>').replace(/:\d+\b/g,':<n>').replace(/\b\d+(?:\.\d+)?\s*ms\b/gi,'<ms>').replace(/\b\d{4,}\b/g,'<n>').replace(/\s+/g,' ').trim().slice(0,440)}`}
+function likelyFix(line,cat){const s=line.toLowerCase();if(/reload_start\w*.*not found|state.*not found/.test(s))return'Transition references an animation-controller state that does not exist. Add the missing state or update the transition target to the current state name.';if(cat==='MOLANG'&&/unknown token|syntax/.test(s))return'Validate the Molang expression around the reported token. Check operators, brackets and whether the query is valid in this animation context.';if(cat==='ANIMATION')return'Check animation/controller identifiers, state names and resource-pack references. Confirm the referenced animation exists and is namespaced correctly.';if(cat==='BLOCK')return'Validate the block JSON against the active Bedrock format version. Remove unsupported components and verify permutations.';if(cat==='ITEM')return'Check item components against the target Bedrock version and verify identifier namespaces.';if(cat==='RECIPE')return'Validate recipe IDs, ingredients, results and format version. Confirm every referenced item exists.';if(cat==='PARTICLE')return'Inspect particle emitter/billboard settings, materials and referenced particle identifiers.';if(cat==='RESOURCE PACK')return'Confirm referenced texture, geometry, material or attachable exists with exact casing and correct namespace/path.';if(cat==='SCRIPT'&&/watchdog/.test(s))return'Reduce work in one tick: cache repeated lookups, batch entity queries, limit projectile/attachment loops and spread expensive work across ticks.';if(cat==='SCRIPT')return'Inspect the script stack/source reference, guard undefined values and verify API availability for the target Bedrock version.';if(cat==='WEAPON')return'Inspect weapon runtime state, active attachments, ammo/chamber values, ADS/recoil profile and event ordering.';if(/not found|missing/.test(s))return'A referenced identifier or source file is missing. Verify path, namespace, casing and pack dependency order.';return'Inspect the first occurrence and source file. Fix the earliest root error before secondary errors that follow it.'}
+function parsePerformance(e){const s=e.raw;let m=s.match(/watchdog[^\d]{0,30}(\d+(?:\.\d+)?)\s*ms/i)||s.match(/(\d+(?:\.\d+)?)\s*ms[^\n]{0,30}watchdog/i);if(m)state.performance.watchdogs.push({value:Number(m[1]),index:e.index});m=s.match(/(?:script\s*(?:tick|runtime)|tick time)[^\d]{0,24}(\d+(?:\.\d+)?)\s*ms/i);if(m)state.performance.scriptTicks.push({value:Number(m[1]),index:e.index});if(/slow event|event handler.*(?:slow|took)|handler[^\d]{0,20}\d+(?:\.\d+)?\s*ms/i.test(s))state.performance.slowEvents++;if(/entity quer(?:y|ies)|getentities|getplayers|dimension\.getentities/i.test(s))state.performance.entityQueries++;if(/projectile/i.test(s))state.performance.projectile++;if(/attachment|attachable/i.test(s))state.performance.attachment++;if(/\bads\b|aim down sight/i.test(s))state.performance.ads++;if(/recoil/i.test(s))state.performance.recoil++}
+function weaponIdOf(line){const m=line.match(/(?:weapon(?:\s+id)?|gun(?:\s+id)?)\s*[:=]\s*([\w:.-]+)/i)||line.match(/\b(ag2:[\w.-]+)\b/i);return m?m[1]:null}
+function extractKV(line,re){const m=line.match(re);return m?m[1].trim():null}
+function parseWeapon(e){const id=weaponIdOf(e.raw);if(!id)return;let w=state.weapons.get(id);if(!w){w={id,events:[],skin:'—',attachments:'—',recoil:'—',adsFov:'—',handling:'—',laser:'—',bipod:'—',wallCollision:'—',ammo:'—',chamber:'—'};state.weapons.set(id,w)}w.events.push(e);const r=e.raw;w.skin=extractKV(r,/skin\s*[:=]\s*([\w:.-]+)/i)||w.skin;w.attachments=extractKV(r,/attachments?\s*[:=]\s*([^,;]+)/i)||w.attachments;w.recoil=extractKV(r,/recoil(?:\s+profile)?\s*[:=]\s*([^,;]+)/i)||w.recoil;w.adsFov=extractKV(r,/(?:ads\s*fov|fov)\s*[:=]\s*([\d.]+)/i)||w.adsFov;w.handling=extractKV(r,/handling\s*[:=]\s*([^,;]+)/i)||w.handling;w.laser=extractKV(r,/laser\s*[:=]\s*([^,;]+)/i)||w.laser;w.bipod=extractKV(r,/bipod\s*[:=]\s*([^,;]+)/i)||w.bipod;w.wallCollision=extractKV(r,/wall\s*collision\s*[:=]\s*([^,;]+)/i)||w.wallCollision;w.ammo=extractKV(r,/(?:current\s+)?ammo\s*[:=]\s*([^,;]+)/i)||w.ammo;w.chamber=extractKV(r,/chamber\s*[:=]\s*([^,;]+)/i)||w.chamber}
 
-function counts(){
-  const c={critical:0,error:0,warning:0};for(const e of state.entries){if(e.severity==='CRITICAL')c.critical++;else if(e.severity==='ERROR')c.error++;else if(e.severity==='WARNING')c.warning++;}return c;
-}
-function renderMetrics(){const c=counts();$('#mCritical').textContent=c.critical;$('#mError').textContent=c.error;$('#mWarning').textContent=c.warning;$('#mWatchdog').textContent=state.performance.watchdogs.length;$('#mGroups').textContent=state.groups.length;$('#mLines').textContent=state.file.lines||0;$('#currentErrors').textContent=c.critical+c.error;}
-function renderHealth(){
-  const wrap=$('#healthList');if(!wrap)return;wrap.innerHTML='';
-  const total=state.entries.length;$('#healthLabel').textContent=total?'ANALYZED':'NO DATA';
-  subsystemDefs.forEach(([name,cats])=>{const n=state.groups.filter(g=>cats.includes(g.category)).reduce((a,g)=>a+g.count,0);const bad=state.groups.some(g=>cats.includes(g.category)&&g.severity==='CRITICAL');const cls=bad?'bad':n?'warn':'ok';const row=document.createElement('div');row.className='health-row';row.innerHTML=`<i class="health-dot ${cls}"></i><div><strong>${escapeHTML(name)}</strong><small>${n?n+' related log events':'No detected faults'}</small></div><b class="health-value">${n}</b>`;wrap.appendChild(row);});
-}
-function renderTopFaults(){const wrap=$('#topFaults');if(!wrap)return;if(!state.groups.length){wrap.innerHTML='<div class="empty">Upload a ContentLog to populate diagnostics.</div>';return;}wrap.innerHTML='';state.groups.slice(0,7).forEach(g=>{const row=document.createElement('div');row.className='fault-row';row.innerHTML=`<div><strong>${escapeHTML(g.category)}</strong><small>${escapeHTML(g.source==='—'?g.message.slice(0,64):g.source)}</small></div><b class="fault-count ${g.severity==='CRITICAL'||g.severity==='ERROR'?'bad':''}">${g.count}×</b>`;row.addEventListener('click',()=>{state.activeGroup=g;setView('inspector');renderInspector();});wrap.appendChild(row);});}
-function renderFilters(){const wrap=$('#consoleFilters');if(!wrap)return;wrap.innerHTML='';channelOrder.forEach(ch=>{const count=ch==='ALL'?state.entries.length:state.entries.filter(e=>e.level===ch||e.category===ch||e.severity===ch).length;if(ch!=='ALL'&&!count)return;const b=document.createElement('button');b.className='filter-chip'+(state.activeFilter===ch?' active':'');b.textContent=`${ch} · ${count}`;b.addEventListener('click',()=>{state.activeFilter=ch;renderFilters();renderConsole();});wrap.appendChild(b);});}
-function filteredEntries(){const q=($('#consoleSearch')?.value||'').trim().toLowerCase();return state.entries.filter(e=>(state.activeFilter==='ALL'||e.level===state.activeFilter||e.category===state.activeFilter||e.severity===state.activeFilter)&&(!q||e.raw.toLowerCase().includes(q)||e.source.toLowerCase().includes(q)||e.category.toLowerCase().includes(q)));}
-function renderConsole(){const wrap=$('#consoleList');if(!wrap)return;const entries=filteredEntries();$('#consoleCount').textContent=`${entries.length.toLocaleString()} lines`;if(!entries.length){wrap.innerHTML='<div class="empty">No matching log entries.</div>';return;}wrap.innerHTML='';const frag=document.createDocumentFragment();entries.slice(-1500).forEach(e=>{const row=document.createElement('div');row.className='log-row';row.innerHTML=`<span class="log-time">${escapeHTML(e.time)}</span><b class="log-level level-${escapeHTML(e.level)}">${escapeHTML(e.level)}</b><span class="log-category">${escapeHTML(e.category)}</span><span class="log-message">${escapeHTML(e.raw)}</span><span class="log-file">${escapeHTML(e.source)}</span>`;frag.appendChild(row);});wrap.appendChild(frag);}
-$('#consoleSearch')?.addEventListener('input',renderConsole);$('#clearConsole')?.addEventListener('click',()=>{state.activeFilter='ALL';if($('#consoleSearch'))$('#consoleSearch').value='';renderFilters();renderConsole();});
+function resetState(){state.entries=[];state.groups=[];state.groupMap.clear();state.categoryCounts.clear();state.severityCounts={CRITICAL:0,ERROR:0,WARNING:0,INFO:0};state.performance={watchdogs:[],scriptTicks:[],slowEvents:0,entityQueries:0,projectile:0,attachment:0,ads:0,recoil:0};state.weapons.clear();state.activeGroup=null}
+function parseText(text,file={name:'Pasted ContentLog',size:text.length}){resetState();const lines=text.replace(/\r/g,'').split('\n');state.file={name:file.name||'ContentLog.txt',size:file.size||text.length,lines:lines.length};for(let i=0;i<lines.length;i++){const raw=lines[i].trimEnd();if(!raw.trim())continue;const category=categoryOf(raw),severity=severityOf(raw),source=sourceOf(raw);const entry={index:i,line:i+1,raw,time:timestampOf(raw),source,category,severity};state.entries.push(entry);state.categoryCounts.set(category,(state.categoryCounts.get(category)||0)+1);state.severityCounts[severity]++;parsePerformance(entry);parseWeapon(entry);if(severity!=='INFO'||category!=='INFO'){const key=normalizeKey(raw,category);let g=state.groupMap.get(key);if(!g){g={key,category,severity,count:0,source,first:i,last:i,samples:[],fix:likelyFix(raw,category),signature:raw.replace(/^\s+/,'').slice(0,220)};state.groupMap.set(key,g)}g.count++;g.last=i;if(g.samples.length<6)g.samples.push(entry);if(severity==='CRITICAL')g.severity='CRITICAL';else if(severity==='ERROR'&&g.severity!=='CRITICAL')g.severity='ERROR';else if(severity==='WARNING'&&g.severity==='INFO')g.severity='WARNING'}}state.groups=[...state.groupMap.values()].sort((a,b)=>b.count-a.count||severityRank(b.severity)-severityRank(a.severity));renderAll();requestAnimationFrame(redrawCharts)}
+function severityRank(s){return{CRITICAL:4,ERROR:3,WARNING:2,INFO:1}[s]||0}
 
-function crashCandidate(){
-  const crit=state.entries.filter(e=>e.severity==='CRITICAL');if(crit.length)return crit[crit.length-1];
-  const errs=state.entries.filter(e=>e.severity==='ERROR');return errs.length?errs[errs.length-1]:null;
-}
-function renderCrash(){
-  const c=crashCandidate();const signals=$('#crashSignals'),timeline=$('#crashTimeline');
-  if(!c){$('#crashTitle').textContent='No critical event detected';$('#crashTime').textContent='—';$('#crashMessage').textContent='Upload a ContentLog. The analyzer will identify the final error sequence, likely subsystem and repeated fault groups.';$('#crashCause').textContent='—';signals.innerHTML='';timeline.innerHTML='<div class="empty">No crash timeline available.</div>';return;}
-  $('#crashTitle').textContent=`${c.category} · ${c.severity}`;$('#crashTime').textContent=c.time;$('#crashMessage').textContent=c.raw;$('#crashCause').textContent=likelyFix(c.raw,c.category);
-  const same=state.groups.find(g=>g.key===c.key);const values=[['Subsystem',c.category],['Source',c.source],['Repeated',same?.count||1],['Watchdog spikes',state.performance.watchdogs.length],['Last line',c.index]];signals.innerHTML=values.map(([k,v])=>`<div class="kv-row"><span>${escapeHTML(k)}</span><strong>${escapeHTML(v)}</strong></div>`).join('');
-  const from=Math.max(0,state.entries.findIndex(e=>e===c)-12),list=state.entries.slice(from,from+13);timeline.innerHTML=list.map(e=>`<div class="timeline-row"><time>${escapeHTML(e.time)}</time><b class="level-${escapeHTML(e.level)}">${escapeHTML(e.level)}</b><p>${escapeHTML(e.raw)}</p></div>`).join('');
-}
-function renderPerformance(){
-  const p=state.performance;$('#pTick').textContent=p.scriptTicks.length?avg(p.scriptTicks).toFixed(1):'—';$('#pPeak').textContent=p.watchdogs.length?Math.max(...p.watchdogs).toFixed(0):'—';$('#pSlow').textContent=p.slowEvents;$('#pEntity').textContent=p.entityQueries;
-  const chart=$('#watchdogChart');if(!p.watchdogs.length){chart.innerHTML='<div class="empty">No timing samples found.</div>';}else{const vals=p.watchdogs.slice(-30),max=Math.max(...vals,1);chart.innerHTML=vals.map(v=>`<i class="bar-item" style="--h:${Math.max(3,(v/max)*210)}px" data-value="${v.toFixed(1)} ms"></i>`).join('');}
-  const proc=[['Projectile processing',p.projectile],['Attachment processing',p.attachment],['ADS processing',p.ads],['Recoil processing',p.recoil],['Entity queries',p.entityQueries],['Slow handlers',p.slowEvents]];$('#processList').innerHTML=proc.map(([k,v])=>`<div class="process-row"><div><strong>${escapeHTML(k)}</strong><small>matching runtime entries</small></div><b class="process-count">${v}</b></div>`).join('');
-}
-function renderWeaponSelect(){const sel=$('#weaponSelect');if(!sel)return;const current=sel.value;sel.innerHTML='<option value="">Detected weapons</option>'+[...state.weapons.keys()].map(k=>`<option value="${escapeHTML(k)}">${escapeHTML(k)}</option>`).join('');if(current&&state.weapons.has(current))sel.value=current;else if(state.weapons.size){sel.value=[...state.weapons.keys()][0];}renderWeapon();}
-function renderWeapon(){
-  const id=$('#weaponSelect')?.value||[...state.weapons.keys()][0],w=id?state.weapons.get(id):null;const kv=$('#weaponKv'),tl=$('#weaponTimeline');
-  if(!w){$('#wId').textContent='NO WEAPON DATA';$('#wSkin').textContent='Skin: —';kv.innerHTML='<div class="empty">Weapon fields will appear when AG2 runtime logs contain weapon telemetry.</div>';tl.innerHTML='<div class="empty">No weapon runtime lines detected.</div>';return;}
-  $('#wId').textContent=w.id;$('#wSkin').textContent=`Skin: ${w.skin}`;const fields=[['Skin',w.skin],['Attachments',w.attachments.size?[...w.attachments].join(', '):'—'],['Recoil profile',w.recoil],['ADS FOV',w.adsFov],['Handling',w.handling],['Laser',w.laser],['Bipod',w.bipod],['Wall collision',w.wallCollision],['Ammo',w.ammo],['Chamber',w.chamber]];kv.innerHTML=fields.map(([k,v])=>`<div class="kv-row"><span>${escapeHTML(k)}</span><strong>${escapeHTML(v)}</strong></div>`).join('');tl.innerHTML=w.events.slice(-80).map(e=>`<div class="timeline-row"><time>${escapeHTML(e.time)}</time><b class="level-${escapeHTML(e.level)}">${escapeHTML(e.level)}</b><p>${escapeHTML(e.raw)}</p></div>`).join('')||'<div class="empty">No weapon events.</div>';
-}
+function healthScore(){const n=Math.max(1,state.entries.length),crit=state.severityCounts.CRITICAL,err=state.severityCounts.ERROR,warn=state.severityCounts.WARNING,wd=state.performance.watchdogs.length,grp=state.groups.length;const penalty=crit*15+(err/n)*72+(warn/n)*22+wd*5+(grp/n)*18;return Math.round(clamp(100-penalty,0,100))}
+function healthLabel(score){if(score>=90)return['Excellent','CLEAN',varColor('--green')];if(score>=75)return['Stable','GOOD','#5dbfa0'];if(score>=55)return['Needs review','DEGRADED',varColor('--gold')];if(score>=30)return['High risk','UNSTABLE','#df7b65'];return['Critical','CRITICAL',varColor('--red')]}
+function varColor(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim()||'#29c995'}
+function bucketEntries(count=30){const out=Array.from({length:count},()=>({CRITICAL:0,ERROR:0,WARNING:0,INFO:0,total:0})),max=Math.max(1,state.file.lines);state.entries.forEach(e=>{const i=Math.min(count-1,Math.floor(e.index/max*count));out[i][e.severity]++;out[i].total++});return out}
+function subsystemData(){return categories.filter(c=>c!=='INFO').map(c=>({name:c,count:state.categoryCounts.get(c)||0})).sort((a,b)=>b.count-a.count)}
+
+function miniTrend(id,values,color='#29c995'){const el=$(id);if(!el)return;const a=values.length?values:[0,0,0,0,0],max=Math.max(1,...a),w=100,h=22,pts=a.map((v,i)=>`${i/(a.length-1||1)*w},${h-(v/max)*(h-3)-1}`).join(' ');el.innerHTML=`<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke" opacity=".8"/><path d="M ${pts.replace(/ /g,' L ')} L ${w},${h} L 0,${h} Z" fill="${color}" opacity=".05"/></svg>`}
+function renderOverview(){const score=healthScore(),label=healthLabel(score);$('#mCritical').textContent=fmt(state.severityCounts.CRITICAL);$('#mError').textContent=fmt(state.severityCounts.ERROR);$('#mWarning').textContent=fmt(state.severityCounts.WARNING);$('#mHealth').textContent=score;$('#mGroups').textContent=fmt(state.groups.length);$('#mLines').textContent=fmt(state.file.lines);$('#navErrorCount').textContent=fmt(state.severityCounts.ERROR+state.severityCounts.CRITICAL);$('#dCritical').textContent=state.severityCounts.CRITICAL?'Potential crash contributors':'No crash contributors';$('#dError').textContent=state.entries.length?`${Math.round(state.severityCounts.ERROR/Math.max(1,state.entries.length)*100)}% of parsed events`:'Parsed errors';$('#dWarning').textContent=state.severityCounts.WARNING?'Non-fatal issues detected':'No warnings';$('#dHealth').textContent=label[0];const buckets=bucketEntries(14);miniTrend('#trendCritical',buckets.map(b=>b.CRITICAL),palette.CRITICAL);miniTrend('#trendError',buckets.map(b=>b.ERROR),palette.ERROR);miniTrend('#trendWarning',buckets.map(b=>b.WARNING),palette.WARNING);miniTrend('#trendHealth',buckets.map((b,i)=>Math.max(0,100-(b.CRITICAL*30+b.ERROR*8+b.WARNING*2))),palette.INFO);miniTrend('#trendGroups',buckets.map(b=>b.ERROR+b.WARNING+b.CRITICAL),'#8faaa0');miniTrend('#trendLines',buckets.map(b=>b.total),'#66877b');renderDonut();renderSubsystemBars();renderScore(score,label);renderHealth();renderFaults();renderHeatmap();renderCrashSignal();}
+function renderDonut(){const c=state.severityCounts,total=c.CRITICAL+c.ERROR+c.WARNING+c.INFO;$('#donutTotal').textContent=fmt(c.CRITICAL+c.ERROR+c.WARNING);$('#severityTotal').textContent=`${fmt(total)} events`;const issueTotal=Math.max(1,c.CRITICAL+c.ERROR+c.WARNING);const parts=[['CRITICAL',c.CRITICAL,palette.CRITICAL],['ERROR',c.ERROR,palette.ERROR],['WARNING',c.WARNING,palette.WARNING],['INFO',c.INFO,palette.INFO]];let deg=0,stops=[];parts.forEach(([n,v,col])=>{const d=v/Math.max(1,total)*360;stops.push(`${col} ${deg}deg ${deg+d}deg`);deg+=d});$('#severityDonut').style.background=total?`conic-gradient(${stops.join(',')})`:'#202922';$('#severityLegend').innerHTML=parts.map(([n,v,col])=>`<div class="donut-row"><i style="background:${col}"></i><span>${n}</span><b>${fmt(v)}</b></div>`).join('')}
+function renderSubsystemBars(){const data=subsystemData().slice(0,8),max=Math.max(1,...data.map(x=>x.count));$('#subsystemBars').innerHTML=data.length&&data.some(x=>x.count)?data.map(x=>`<div class="bar-row"><label title="${esc(x.name)}">${esc(x.name)}</label><div class="bar-track"><i style="transform:scaleX(${x.count/max});background:${palette[x.name]||'linear-gradient(90deg,#1b8f69,#31d39c)'}"></i></div><b>${fmt(x.count)}</b></div>`).join(''):'<div class="empty">No subsystem errors detected yet.</div>'}
+function renderScore(score,label){$('#scoreValue').textContent=score;$('#scoreRing').style.background=`conic-gradient(${label[2]} ${score*3.6}deg,#202922 0deg)`;$('#scoreLabel').textContent=label[1];$('#scoreHeadline').textContent=label[0];$('#scoreDescription').textContent=state.entries.length?`${fmt(state.groups.length)} unique groups across ${fmt(state.file.lines)} log lines. ${state.performance.watchdogs.length?`${state.performance.watchdogs.length} watchdog signal(s) detected.`:'No watchdog signal detected.'}`:'Upload a ContentLog to calculate a weighted diagnostic score.'}
+function renderHealth(){const defs=[['Script Runtime',['SCRIPT']],['Resource Pack',['RESOURCE PACK']],['Behavior Pack',['BLOCK','ITEM','RECIPE']],['PBR',['RESOURCE PACK']],['Animation',['ANIMATION','MOLANG']],['Weapon Runtime',['WEAPON','SCRIPT']]];$('#healthList').innerHTML=defs.map(([name,cats])=>{const count=cats.reduce((n,c)=>n+(state.categoryCounts.get(c)||0),0),bad=state.groups.filter(g=>cats.includes(g.category)&&(g.severity==='CRITICAL'||g.severity==='ERROR')).reduce((n,g)=>n+g.count,0),cls=bad?'bad':count?'warn':'ok';return`<div class="health-row"><i class="health-dot ${cls}"></i><div><strong>${name}</strong><small>${count?`${fmt(count)} related log event${count===1?'':'s'}`:'No detected faults'}</small></div><span class="health-value">${fmt(count)}</span></div>`}).join('')}
+function renderFaults(){const list=state.groups.slice(0,7);$('#faultList').innerHTML=list.length?list.map((g,i)=>`<div class="fault-row" data-group-index="${i}"><span class="fault-category level-${g.category.replace(/ /g,'-')}">${esc(g.category)}</span><span class="fault-source"><strong>${esc(g.source==='—'?g.signature:g.source)}</strong><small>${esc(g.signature)}</small></span><span class="severity-pill ${g.severity}">${g.severity}</span><b class="fault-count">${g.count}×</b></div>`).join(''):'<div class="empty">No repeated fault signatures yet.</div>';$$('#faultList .fault-row').forEach((el,i)=>el.addEventListener('click',()=>{state.activeGroup=state.groups[i];renderInspector();setView('inspector')}))}
+function renderHeatmap(){const count=64,buckets=bucketEntries(count),max=Math.max(1,...buckets.map(b=>b.CRITICAL*5+b.ERROR*3+b.WARNING+b.INFO*.1));$('#logHeatmap').innerHTML=buckets.map((b,i)=>{const v=b.CRITICAL*5+b.ERROR*3+b.WARNING+b.INFO*.1,t=v/max;const a=.07+t*.78;const col=b.CRITICAL?'239,89,100':b.ERROR?'231,122,120':b.WARNING?'211,170,97':'41,201,149';return`<i class="heat-cell" title="Bucket ${i+1}: ${b.CRITICAL+b.ERROR+b.WARNING} issues" style="background:rgba(${col},${a.toFixed(2)})"></i>`}).join('')}
+function crashCandidate(){for(let i=state.entries.length-1;i>=0;i--){const e=state.entries[i];if(e.severity==='CRITICAL'||(e.severity==='ERROR'&&/watchdog|crash|fatal|exception|terminated|out of memory/i.test(e.raw)))return e}return null}
+function renderCrashSignal(){const e=crashCandidate();if(!e){$('#crashRiskLabel').textContent='NONE';$('#crashSignal').innerHTML='<div class="risk-empty">No high-risk crash candidate detected.</div>';return}$('#crashRiskLabel').textContent=e.severity;$('#crashSignal').innerHTML=`<div class="risk-event"><span class="risk-level">${e.severity}</span><strong>${esc(e.category)} · ${esc(e.source)}</strong><p>${esc(e.raw)}</p><small>Line ${e.line} · ${esc(e.time)}</small></div>`}
+
+function setupCanvas(canvas){if(!canvas)return null;const r=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);canvas.width=Math.max(1,Math.round(r.width*dpr));canvas.height=Math.max(1,Math.round(r.height*dpr));const ctx=canvas.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,w:r.width,h:r.height}}
+function drawErrorFlow(){const canvas=$('#errorFlowChart'),empty=$('#errorFlowEmpty');if(!canvas)return;const data=bucketEntries(36),has=state.entries.length>0;empty.style.display=has?'none':'grid';const setup=setupCanvas(canvas);if(!setup)return;const{ctx,w,h}=setup;ctx.clearRect(0,0,w,h);const pad={l:30,r:10,t:12,b:24},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b,max=Math.max(1,...data.map(d=>d.ERROR+d.CRITICAL),...data.map(d=>d.WARNING),...data.map(d=>d.INFO));ctx.strokeStyle='rgba(112,130,116,.12)';ctx.lineWidth=1;for(let i=0;i<5;i++){const y=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke()}const series=[['INFO',d=>d.INFO,palette.INFO],['WARNING',d=>d.WARNING,palette.WARNING],['ERROR',d=>d.ERROR+d.CRITICAL,palette.ERROR]];series.forEach(([name,get,col])=>{ctx.beginPath();data.forEach((d,i)=>{const x=pad.l+cw*i/(data.length-1),y=pad.t+ch-(get(d)/max)*ch;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle=col;ctx.lineWidth=name==='ERROR'?2:1.4;ctx.stroke();ctx.lineTo(pad.l+cw,pad.t+ch);ctx.lineTo(pad.l,pad.t+ch);ctx.closePath();ctx.fillStyle=hexAlpha(col,name==='ERROR'?0.05:0.025);ctx.fill()});ctx.fillStyle='#59655d';ctx.font='8px ui-monospace, Menlo, monospace';ctx.fillText('0',6,pad.t+ch+3);ctx.fillText(String(max),6,pad.t+7);ctx.fillText('START',pad.l,h-5);ctx.fillText('END',w-pad.r-22,h-5)}
+function hexAlpha(hex,a){const h=hex.replace('#','');const n=parseInt(h.length===3?h.split('').map(x=>x+x).join(''):h,16);return`rgba(${n>>16},${n>>8&255},${n&255},${a})`}
+function drawPerformance(){const canvas=$('#performanceChart'),empty=$('#performanceEmpty');if(!canvas)return;const wd=state.performance.watchdogs,st=state.performance.scriptTicks,has=wd.length||st.length;empty.style.display=has?'none':'grid';const setup=setupCanvas(canvas);if(!setup)return;const{ctx,w,h}=setup;ctx.clearRect(0,0,w,h);const values=[...wd.map(x=>x.value),...st.map(x=>x.value)],max=Math.max(1,...values),pad={l:34,r:12,t:12,b:24},cw=w-pad.l-pad.r,ch=h-pad.t-pad.b;ctx.strokeStyle='rgba(112,130,116,.12)';for(let i=0;i<5;i++){const y=pad.t+ch*i/4;ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke()}const draw=(arr,col)=>{if(!arr.length)return;ctx.beginPath();arr.forEach((d,i)=>{const x=pad.l+cw*i/(Math.max(1,arr.length-1)),y=pad.t+ch-(d.value/max)*ch;i?ctx.lineTo(x,y):ctx.moveTo(x,y)});ctx.strokeStyle=col;ctx.lineWidth=1.8;ctx.stroke();arr.forEach((d,i)=>{if(arr.length>28&&i%3)return;const x=pad.l+cw*i/Math.max(1,arr.length-1),y=pad.t+ch-(d.value/max)*ch;ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,2,0,Math.PI*2);ctx.fill()})};draw(st,palette.INFO);draw(wd,palette.ERROR);ctx.fillStyle='#59655d';ctx.font='8px ui-monospace, Menlo, monospace';ctx.fillText('0 ms',4,pad.t+ch+3);ctx.fillText(`${Math.round(max)} ms`,4,pad.t+7)}
+function redrawCharts(){drawErrorFlow();drawPerformance()}
+let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(redrawCharts,120)},{passive:true});
+
+function renderConsole(){const filter=state.activeFilter,q=($('#consoleSearch')?.value||'').trim().toLowerCase();const list=state.entries.filter(e=>(filter==='ALL'||e.severity===filter||e.category===filter)&&(!q||e.raw.toLowerCase().includes(q)||e.source.toLowerCase().includes(q)));$('#consoleCount').textContent=`${fmt(list.length)} EVENTS`;$('#consoleList').innerHTML=list.length?list.slice(0,2500).map(e=>`<div class="log-row"><span class="log-time">${esc(e.time)}</span><b class="log-level level-${esc(e.severity)}">${esc(e.severity)}</b><span class="log-category level-${esc(e.category.replace(/ /g,'-'))}">${esc(e.category)}</span><span class="log-message">${esc(e.raw)}</span><span class="log-file">${esc(e.source)}</span></div>`).join(''):'<div class="empty">No events match the current filter.</div>'}
+function renderFilters(){const root=$('#channelFilters');if(!root)return;root.innerHTML=channels.map(c=>`<button class="filter-chip ${state.activeFilter===c?'active':''}" data-channel="${esc(c)}">${esc(c)}${c==='ALL'?'':` · ${fmt(c in state.severityCounts?state.severityCounts[c]:state.categoryCounts.get(c)||0)}`}</button>`).join('');$$('[data-channel]',root).forEach(b=>b.addEventListener('click',()=>{state.activeFilter=b.dataset.channel;renderFilters();renderConsole()}))}
+$('#consoleSearch')?.addEventListener('input',renderConsole);
+
+function renderCrash(){const e=crashCandidate();if(!e){$('#crashTitle').textContent='No crash candidate';$('#crashTime').textContent='—';$('#crashPrimary').innerHTML='<div class="empty">No CRITICAL or crash-like event was detected.</div>';$('#crashFacts').innerHTML='';$('#crashTimeline').innerHTML='<div class="empty">No pre-crash timeline available.</div>';return}$('#crashTitle').textContent=`${e.category} · ${e.source}`;$('#crashTime').textContent=e.time;$('#crashPrimary').innerHTML=`<p>${esc(e.raw)}</p><div class="cause-box"><span>LIKELY CAUSE / NEXT ACTION</span><strong>${esc(likelyFix(e.raw,e.category))}</strong></div>`;const related=state.groups.find(g=>g.samples.some(s=>s.index===e.index));const prev=state.entries.filter(x=>x.index<=e.index).slice(-10);$('#crashFacts').innerHTML=[['Severity',e.severity],['Subsystem',e.category],['Source',e.source],['Log line',e.line],['Repeated',related?`${related.count}×`:'1×'],['Watchdog peak',state.performance.watchdogs.length?fmtMs(Math.max(...state.performance.watchdogs.map(x=>x.value))):'None']].map(([a,b])=>`<div class="kv-row"><span>${esc(a)}</span><strong>${esc(b)}</strong></div>`).join('');$('#crashTimeline').innerHTML=prev.map(x=>`<div class="timeline-row"><time>${esc(x.time)}</time><b class="level-${x.severity}">${x.severity}</b><p>${esc(x.raw)}</p></div>`).join('')}
+function renderPerformance(){const p=state.performance,peak=p.watchdogs.length?Math.max(...p.watchdogs.map(x=>x.value)):0,ticks=p.scriptTicks.map(x=>x.value);$('#pWatchdogPeak').textContent=fmtMs(peak);$('#pWatchdogCount').textContent=`${p.watchdogs.length} spike${p.watchdogs.length===1?'':'s'}`;$('#pTickAvg').textContent=fmtMs(avg(ticks));$('#pTickSamples').textContent=`${ticks.length} sample${ticks.length===1?'':'s'}`;$('#pSlowEvents').textContent=fmt(p.slowEvents);$('#pEntityQueries').textContent=fmt(p.entityQueries);const arr=[['Projectile processing',p.projectile],['Attachment processing',p.attachment],['ADS processing',p.ads],['Recoil processing',p.recoil],['Entity queries',p.entityQueries],['Slow handlers',p.slowEvents]],max=Math.max(1,...arr.map(x=>x[1]));$('#processList').innerHTML=arr.map(([name,v])=>`<div class="process-row"><div><strong>${name}</strong><small>${v?'Log references detected':'No signal detected'}</small></div><div class="process-bar"><i style="width:${v/max*100}%"></i></div><b class="process-count">${fmt(v)}</b></div>`).join('');requestAnimationFrame(drawPerformance)}
+function renderWeapon(){const select=$('#weaponSelect'),items=[...state.weapons.values()];select.innerHTML=items.length?items.map(w=>`<option value="${esc(w.id)}">${esc(w.id)}</option>`).join(''):'<option value="">No weapons detected</option>';const current=state.weapons.get(select.value)||items[0];if(current&&select.value!==current.id)select.value=current.id;if(!current){$('#weaponTitle').textContent='No weapon runtime data';$('#weaponCard').innerHTML='<div class="empty">No weapon IDs were discovered in this ContentLog.</div>';$('#weaponEvents').innerHTML='<div class="empty">No weapon events.</div>';return}$('#weaponTitle').textContent=current.id;$('#weaponCard').innerHTML=`<div class="weapon-schematic"></div><div class="weapon-id"><span>AG2 WEAPON ID</span><strong>${esc(current.id)}</strong><small>${current.events.length} related runtime events</small></div><div class="weapon-kv">${[['Skin',current.skin],['Attachments',current.attachments],['Recoil profile',current.recoil],['ADS FOV',current.adsFov],['Handling',current.handling],['Laser',current.laser],['Bipod',current.bipod],['Wall collision',current.wallCollision],['Ammo',current.ammo],['Chamber',current.chamber]].map(([a,b])=>`<div><span>${a}</span><strong>${esc(b)}</strong></div>`).join('')}</div>`;$('#weaponEvents').innerHTML=current.events.slice(-80).reverse().map(e=>`<div class="weapon-event"><span>${esc(e.time)} · ${esc(e.severity)} · line ${e.line}</span><p>${esc(e.raw)}</p></div>`).join('')}
 $('#weaponSelect')?.addEventListener('change',renderWeapon);
 
-function categoryLabel(g){return `${g.category} · ${g.severity}`;}
-function renderInspector(){
-  const q=($('#groupSearch')?.value||'').trim().toLowerCase();const list=$('#categoryList');const groups=state.groups.filter(g=>!q||g.category.toLowerCase().includes(q)||g.source.toLowerCase().includes(q)||g.message.toLowerCase().includes(q));
-  if(!groups.length){list.innerHTML='<div class="empty">No diagnostics loaded.</div>';$('#detailTitle').textContent='Select an error group';$('#detailCount').textContent='0×';$('#detailBody').innerHTML='<div class="empty">Choose a category to inspect source lines and likely fixes.</div>';return;}
-  if(!state.activeGroup||!groups.includes(state.activeGroup))state.activeGroup=groups[0];list.innerHTML='';groups.slice(0,500).forEach(g=>{const b=document.createElement('button');b.className='category-item'+(g===state.activeGroup?' active':'');b.innerHTML=`<div><span>${escapeHTML(categoryLabel(g))}</span><small>${escapeHTML(g.source==='—'?g.message:g.source)}</small></div><b>${g.count}</b>`;b.addEventListener('click',()=>{state.activeGroup=g;renderInspector();});list.appendChild(b);});
-  const g=state.activeGroup;$('#detailTitle').textContent=categoryLabel(g);$('#detailCount').textContent=`${g.count}×`;$('#detailBody').innerHTML=`<div class="detail-summary"><div><span>SOURCE</span><strong>${escapeHTML(g.source)}</strong></div><div><span>FIRST LINE</span><strong>${g.firstLine}</strong></div><div><span>LAST LINE</span><strong>${g.lastLine}</strong></div></div><div class="fix-card"><span>LIKELY FIX</span><p>${escapeHTML(g.fix)}</p></div><div class="source-lines">${g.entries.slice(0,60).map(e=>`<div class="source-line">#${e.index} · ${escapeHTML(e.raw)}</div>`).join('')}</div>`;
-}
-$('#groupSearch')?.addEventListener('input',renderInspector);
+function renderInspector(){let groups=[...state.groups];if(state.criticalFirst)groups.sort((a,b)=>severityRank(b.severity)-severityRank(a.severity)||b.count-a.count);const active=state.activeGroup||groups[0];if(active)state.activeGroup=active;$('#groupList').innerHTML=groups.length?groups.map((g,i)=>`<button class="group-item ${g===active?'active':''}" data-gkey="${esc(g.key)}"><span><strong>${esc(g.category)} · ${esc(g.severity)}</strong><small>${esc(g.source==='—'?g.signature:g.source)}</small></span><b>${g.count}×</b></button>`).join(''):'<div class="empty">No deduplicated error groups available.</div>';$$('.group-item').forEach(b=>b.addEventListener('click',()=>{state.activeGroup=state.groupMap.get(b.dataset.gkey);renderInspector()}));const d=$('#inspectorDetail');if(!active){d.innerHTML='<div class="empty">Select a group to inspect it.</div>';return}d.innerHTML=`<div class="panel-head"><div><span>${esc(active.category)}</span><strong>${esc(active.source)}</strong></div><span class="severity-pill ${active.severity}">${active.severity}</span></div><div class="detail-body"><div class="detail-summary"><div><span>Occurrences</span><strong>${fmt(active.count)}</strong></div><div><span>First line</span><strong>${active.first+1}</strong></div><div><span>Last line</span><strong>${active.last+1}</strong></div><div><span>Source</span><strong>${esc(active.source)}</strong></div></div><div class="fix-card"><span>LIKELY FIX</span><p>${esc(active.fix)}</p></div><div class="source-lines">${active.samples.map(e=>`<div class="source-line">[${esc(e.time)}] ${esc(e.raw)}</div>`).join('')}</div></div>`}
+$('#inspectorFilter')?.addEventListener('click',()=>{state.criticalFirst=!state.criticalFirst;$('#inspectorFilter').textContent=state.criticalFirst?'Count first':'Critical first';renderInspector()});
 
 function builds(){try{return JSON.parse(localStorage.getItem(BUILD_KEY)||'[]')}catch{return[]}}
-function saveBuilds(list){localStorage.setItem(BUILD_KEY,JSON.stringify(list.slice(-20)));}
-function snapshot(name){const c=counts();return{name,createdAt:nowStamp(),errors:c.critical+c.error,warnings:c.warning,groups:state.groups.map(g=>g.key),groupMeta:state.groups.map(g=>({key:g.key,category:g.category,severity:g.severity,count:g.count,source:g.source}))};}
-function renderBuilds(){
-  const list=builds(),select=$('#compareBuild'),history=$('#buildHistory');const currentName=($('#buildName')?.value||'').trim()||'UNASSIGNED';$('#currentBuildName').textContent=currentName;$('#activeBuild').textContent=currentName;
-  select.innerHTML='<option value="">Select saved build</option>'+list.map((b,i)=>`<option value="${i}">${escapeHTML(b.name)} · ${new Date(b.createdAt).toLocaleDateString()}</option>`).join('');
-  history.innerHTML=list.length?list.slice().reverse().map(b=>`<div class="build-row"><div><strong>${escapeHTML(b.name)}</strong><small>${new Date(b.createdAt).toLocaleString()}</small></div><b>${b.errors} errors</b></div>`).join(''):'<div class="empty">No saved snapshots.</div>';renderComparison();
-}
-function renderComparison(){
-  const list=builds(),idx=$('#compareBuild')?.value,base=idx!==''?list[Number(idx)]:null,curr=snapshot((($('#buildName')?.value||'').trim()||'UNASSIGNED'));$('#baseBuildName').textContent=base?.name||'—';$('#baseErrors').textContent=base?.errors||0;$('#currentBuildName').textContent=curr.name;$('#currentErrors').textContent=curr.errors;
-  if(!base){$('#fixedCount').textContent=0;$('#regressionCount').textContent=0;$('#netChange').textContent=curr.errors;return;}
-  const old=new Set(base.groups||[]),now=new Set(curr.groups||[]);let fixed=0,newReg=0;old.forEach(k=>{if(!now.has(k))fixed++});now.forEach(k=>{if(!old.has(k))newReg++});$('#fixedCount').textContent=fixed;$('#regressionCount').textContent=newReg;const delta=curr.errors-base.errors;$('#netChange').textContent=(delta>0?'+':'')+delta;
-}
-$('#saveBuildBtn')?.addEventListener('click',()=>{const name=($('#buildName')?.value||'').trim();if(!name){$('#buildName').focus();return;}const list=builds();list.push(snapshot(name));saveBuilds(list);renderBuilds();});
-$('#compareBuild')?.addEventListener('change',renderComparison);$('#buildName')?.addEventListener('input',()=>{const n=$('#buildName').value.trim()||'UNASSIGNED';$('#activeBuild').textContent=n;renderComparison();});$('#clearBuilds')?.addEventListener('click',()=>{localStorage.removeItem(BUILD_KEY);renderBuilds();});
+function saveBuilds(a){localStorage.setItem(BUILD_KEY,JSON.stringify(a.slice(-30)))}
+function snapshot(name){return{name:name||`Build ${new Date().toLocaleString()}`,ts:Date.now(),file:state.file.name,lines:state.file.lines,critical:state.severityCounts.CRITICAL,error:state.severityCounts.ERROR,warning:state.severityCounts.WARNING,groups:state.groups.map(g=>({key:g.key,category:g.category,severity:g.severity,count:g.count,source:g.source})),score:healthScore()}}
+function renderBuilds(){const a=builds(),opts=a.map((b,i)=>`<option value="${i}">${esc(b.name)}</option>`).join('');$('#buildA').innerHTML=opts||'<option>No snapshots</option>';$('#buildB').innerHTML=opts||'<option>No snapshots</option>';if(a.length>1)$('#buildA').value=String(a.length-2),$('#buildB').value=String(a.length-1);$('#buildHistory').innerHTML=a.length?[...a].reverse().map(b=>`<div class="build-row"><strong>${esc(b.name)}</strong><small>${new Date(b.ts).toLocaleString()}</small><b>${b.error+b.critical} errors · ${b.score}</b></div>`).join(''):'<div class="empty">No local build snapshots yet.</div>';const last=a[a.length-1];$('#activeBuild').textContent=last?.name||'UNASSIGNED'}
+$('#saveBuild')?.addEventListener('click',()=>{if(!state.entries.length){alert('Analyze a ContentLog first.');return}const name=$('#buildName').value.trim()||`Build ${new Date().toLocaleDateString()}`,a=builds();a.push(snapshot(name));saveBuilds(a);$('#buildName').value='';renderBuilds()});
+$('#compareBuilds')?.addEventListener('click',()=>{const a=builds(),A=a[Number($('#buildA').value)],B=a[Number($('#buildB').value)];if(!A||!B){$('#compareResult').innerHTML='<div class="empty">Save at least two snapshots.</div>';return}const keysA=new Set(A.groups.map(g=>g.key)),keysB=new Set(B.groups.map(g=>g.key)),fixed=[...keysA].filter(k=>!keysB.has(k)).length,reg=[...keysB].filter(k=>!keysA.has(k)).length,errA=A.error+A.critical,errB=B.error+B.critical;$('#compareResult').innerHTML=`<div class="compare-stat-grid"><div class="compare-stat"><span>${esc(A.name)}</span><strong>${fmt(errA)}</strong></div><div class="compare-stat"><span>${esc(B.name)}</span><strong>${fmt(errB)}</strong></div><div class="compare-stat good"><span>Fixed groups</span><strong>${fmt(fixed)}</strong></div><div class="compare-stat bad"><span>New regressions</span><strong>${fmt(reg)}</strong></div></div>`});
 
-function setParseProgress(value,status){const v=Math.max(0,Math.min(100,value));$('#parseBar').style.transform=`scaleX(${v/100})`;$('#parsePercent').textContent=`${Math.round(v)}%`;$('#parseStatusTitle').textContent=status;}
-function updateFileMeta(){const spans=$$('#parseMeta span');if(spans[0])spans[0].textContent=`Filename: ${state.file.name}`;if(spans[1])spans[1].textContent=`Size: ${formatBytes(state.file.size)}`;if(spans[2])spans[2].textContent=`Lines: ${state.file.lines.toLocaleString()}`;}
-async function readFile(file){if(!file)return;setParseProgress(1,'Reading file');try{const text=await file.text();state.file={name:file.name,size:file.size,lines:0};updateFileMeta();await analyzeText(text,{name:file.name,size:file.size});}catch(err){console.error(err);setParseProgress(0,'Could not read file');}}
-const drop=$('#dropZone'),fileInput=$('#fileInput');fileInput?.addEventListener('change',()=>readFile(fileInput.files?.[0]));['dragenter','dragover'].forEach(ev=>drop?.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')}));['dragleave','drop'].forEach(ev=>drop?.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')}));drop?.addEventListener('drop',e=>readFile(e.dataTransfer?.files?.[0]));$('#parsePaste')?.addEventListener('click',()=>{const text=$('#logPaste').value;if(text.trim())analyzeText(text,{name:'Pasted ContentLog',size:new Blob([text]).size});});
+function renderUpload(){const f=state.file;$('#fileName').textContent=state.entries.length?f.name:'No ContentLog analyzed';$('#fileMeta').innerHTML=[['File size',f.size?formatBytes(f.size):'—'],['Log lines',f.lines?fmt(f.lines):'—'],['Parsed events',state.entries.length?fmt(state.entries.length):'—'],['Unique groups',state.groups.length?fmt(state.groups.length):'—']].map(([a,b])=>`<div class="kv-row"><span>${a}</span><strong>${b}</strong></div>`).join('');const top=subsystemData().filter(x=>x.count).slice(0,6);$('#analysisSummary').innerHTML=state.entries.length?[['Health score',healthScore()],['Errors',state.severityCounts.ERROR+state.severityCounts.CRITICAL],['Warnings',state.severityCounts.WARNING],['Watchdog',state.performance.watchdogs.length],...top.map(x=>[x.name,x.count])].map(([a,b])=>`<div><span>${esc(a)}</span><strong>${fmt(b)}</strong></div>`).join(''):'<div class="empty">No analysis loaded.</div>'}
+function formatBytes(bytes){if(!bytes)return'0 B';const u=['B','KB','MB','GB'];let i=0,n=bytes;while(n>=1024&&i<u.length-1){n/=1024;i++}return`${n.toFixed(i?1:0)} ${u[i]}`}
+function setProgress(v,text){$('#parseProgress').style.transform=`scaleX(${clamp(v,0,100)/100})`;$('#parseStatus').textContent=text}
+function readFile(file){if(!file)return;setProgress(5,'Opening ContentLog…');const reader=new FileReader();reader.onprogress=e=>{if(e.lengthComputable)setProgress(5+e.loaded/e.total*55,`Reading ${Math.round(e.loaded/e.total*100)}%…`)};reader.onerror=()=>setProgress(0,'Could not read this file.');reader.onload=()=>{setProgress(70,'Classifying and deduplicating diagnostics…');setTimeout(()=>{try{parseText(String(reader.result||''),file);setProgress(100,`Analysis complete · ${fmt(state.entries.length)} events · ${fmt(state.groups.length)} unique groups`);setTimeout(()=>setView('overview'),180)}catch(err){console.error(err);setProgress(0,'Analysis failed. Check the file format.')}},30)};reader.readAsText(file)}
+$('#fileInput')?.addEventListener('change',e=>readFile(e.target.files?.[0]));const dz=$('#dropZone');['dragenter','dragover'].forEach(t=>dz?.addEventListener(t,e=>{e.preventDefault();dz.classList.add('drag')}));['dragleave','drop'].forEach(t=>dz?.addEventListener(t,e=>{e.preventDefault();dz.classList.remove('drag')}));dz?.addEventListener('drop',e=>readFile(e.dataTransfer.files?.[0]));
 
-function renderAll(){if(appShell?.hidden)return;renderMetrics();renderHealth();renderTopFaults();renderFilters();renderConsole();renderCrash();renderPerformance();renderWeaponSelect();renderInspector();renderBuilds();updateFileMeta();}
+function renderAll(){renderOverview();renderFilters();renderConsole();renderCrash();renderPerformance();renderWeapon();renderInspector();renderBuilds();renderUpload()}
+
+const globalSearch=$('#globalSearch');globalSearch?.addEventListener('keydown',e=>{if(e.key==='Enter'){const q=globalSearch.value.trim();setView('console');$('#consoleSearch').value=q;renderConsole()}});addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();globalSearch?.focus()}if(e.key==='Escape')closeSidebar()});
+$('#exportReport')?.addEventListener('click',()=>{if(!state.entries.length){alert('Analyze a ContentLog first.');return}const report={generated:new Date().toISOString(),file:state.file,summary:{...state.severityCounts,healthScore:healthScore(),uniqueGroups:state.groups.length},performance:{watchdogs:state.performance.watchdogs.map(x=>x.value),scriptTicks:state.performance.scriptTicks.map(x=>x.value),slowEvents:state.performance.slowEvents,entityQueries:state.performance.entityQueries,projectile:state.performance.projectile,attachment:state.performance.attachment,ads:state.performance.ads,recoil:state.performance.recoil},topFaults:state.groups.slice(0,100).map(g=>({category:g.category,severity:g.severity,count:g.count,source:g.source,signature:g.signature,likelyFix:g.fix}))};const blob=new Blob([JSON.stringify(report,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`AG2-Diagnostics-${Date.now()}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)});
+
 renderAll();
 })();
