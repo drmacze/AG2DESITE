@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#060708">
+  <meta name="robots" content="noindex,nofollow,noarchive,nosnippet,noimageindex">
+  <meta name="referrer" content="no-referrer">
+  <title>DLAVIE DEV CONSOLE · AG2 DE</title>
+  <link rel="stylesheet" href="console.css?v=1">
+</head>
+<body>
+  <div class="access-shell" id="accessShell">
+    <div class="access-card">
+      <div class="access-mark">AG2</div>
+      <p class="eyebrow">RESTRICTED SYSTEM</p>
+      <h1>DLAVIE DEV CONSOLE</h1>
+      <p class="access-copy">Authorized AG2 development access only. ContentLog analysis runs locally on this device.</p>
+      <form id="accessForm" autocomplete="off">
+        <label for="accessKey">Developer access key</label>
+        <div class="access-row">
+          <input id="accessKey" type="password" inputmode="text" spellcheck="false" autocomplete="off" placeholder="AG2-••••••••••••••••">
+          <button type="submit">UNLOCK</button>
+        </div>
+        <p class="access-error" id="accessError" aria-live="polite"></p>
+      </form>
+      <div class="privacy-note"><span></span> LOCAL PRIVACY MODE · NO LOG FILE IS UPLOADED</div>
+    </div>
+  </div>
+
+  <div class="app-shell" id="appShell" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="brand-block">
+        <div class="brand-symbol">D</div>
+        <div><strong>DLAVIE DEV</strong><small>AG2 DEFINITIVE</small></div>
+      </div>
+      <nav class="side-nav" aria-label="Developer console sections">
+        <button class="nav-item active" data-view="overview"><span>01</span>Overview</button>
+        <button class="nav-item" data-view="console"><span>02</span>Live Console</button>
+        <button class="nav-item" data-view="crash"><span>03</span>Crash Analyzer</button>
+        <button class="nav-item" data-view="performance"><span>04</span>Performance</button>
+        <button class="nav-item" data-view="weapon"><span>05</span>Weapon Debug</button>
+        <button class="nav-item" data-view="inspector"><span>06</span>Error Inspector</button>
+        <button class="nav-item" data-view="builds"><span>07</span>Build Compare</button>
+        <button class="nav-item" data-view="upload"><span>08</span>ContentLog</button>
+      </nav>
+      <div class="sidebar-foot">
+        <div class="secure-state"><i></i><div><strong>LOCAL MODE</strong><small>Browser-only analysis</small></div></div>
+        <button class="logout-btn" id="logoutBtn">LOCK CONSOLE</button>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobileMenu" aria-label="Open navigation">☰</button>
+        <div class="top-title"><span id="viewCode">01</span><div><strong id="viewTitle">SYSTEM OVERVIEW</strong><small>ACTUAL GUN 2 · DEFINITIVE EDITION</small></div></div>
+        <div class="build-chip"><span>BUILD</span><b id="activeBuild">UNASSIGNED</b></div>
+        <div class="runtime-state"><i></i>ANALYZER READY</div>
+      </header>
+
+      <section class="view active" data-panel="overview">
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow red">AG2 DIAGNOSTICS CORE</p>
+            <h2>One console for every failure path.</h2>
+            <p>Parse ContentLog, isolate regressions, inspect weapon runtime data, identify watchdog spikes and compare AG2 builds without sending logs off-device.</p>
+            <div class="hero-actions">
+              <button class="primary" data-jump="upload">ANALYZE CONTENTLOG</button>
+              <button class="ghost" data-jump="console">OPEN LIVE CONSOLE</button>
+            </div>
+          </div>
+          <div class="system-radar">
+            <div class="radar-ring r1"></div><div class="radar-ring r2"></div><div class="radar-ring r3"></div><div class="radar-sweep"></div><div class="radar-core"></div>
+            <div class="radar-label l1">SCRIPT</div><div class="radar-label l2">RESOURCE</div><div class="radar-label l3">ANIMATION</div><div class="radar-label l4">WEAPON</div>
+          </div>
+        </div>
+
+        <div class="metric-grid" id="metricGrid">
+          <article class="metric critical"><span>CRITICAL</span><strong id="mCritical">0</strong><small>crash contributors</small></article>
+          <article class="metric error"><span>ERROR</span><strong id="mError">0</strong><small>parsed errors</small></article>
+          <article class="metric warning"><span>WARNING</span><strong id="mWarning">0</strong><small>non-fatal issues</small></article>
+          <article class="metric"><span>WATCHDOG</span><strong id="mWatchdog">0</strong><small>performance spikes</small></article>
+          <article class="metric"><span>UNIQUE GROUPS</span><strong id="mGroups">0</strong><small>deduplicated faults</small></article>
+          <article class="metric"><span>LOG LINES</span><strong id="mLines">0</strong><small>processed locally</small></article>
+        </div>
+
+        <div class="two-col">
+          <section class="panel">
+            <div class="panel-head"><div><span>SUBSYSTEM STATUS</span><strong>Runtime health</strong></div><small id="healthLabel">NO DATA</small></div>
+            <div class="health-list" id="healthList"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head"><div><span>TOP FAULTS</span><strong>Most repeated groups</strong></div><button data-jump="inspector">VIEW ALL</button></div>
+            <div class="fault-list" id="topFaults"><div class="empty">Upload a ContentLog to populate diagnostics.</div></div>
+          </section>
+        </div>
+      </section>
+
+      <section class="view" data-panel="console">
+        <div class="section-head"><div><p class="eyebrow red">LIVE CONSOLE</p><h2>Filtered runtime stream</h2></div><div class="head-actions"><button class="ghost small" id="clearConsole">CLEAR FILTER</button><button class="primary small" data-jump="upload">LOAD LOG</button></div></div>
+        <div class="filter-row" id="consoleFilters"></div>
+        <div class="console-shell">
+          <div class="console-toolbar"><span id="consoleCount">0 lines</span><input id="consoleSearch" type="search" placeholder="Search message, file, subsystem…"></div>
+          <div class="console-list" id="consoleList"><div class="empty">No log loaded.</div></div>
+        </div>
+      </section>
+
+      <section class="view" data-panel="crash">
+        <div class="section-head"><div><p class="eyebrow red">CRASH ANALYZER</p><h2>Last failure chain</h2></div></div>
+        <div class="crash-grid">
+          <section class="panel crash-primary"><div class="panel-head"><div><span>LAST CRITICAL EVENT</span><strong id="crashTitle">No critical event detected</strong></div><b id="crashTime">—</b></div><p id="crashMessage">Upload a ContentLog. The analyzer will identify the final error sequence, likely subsystem and repeated fault groups.</p><div class="cause-box"><span>LIKELY CAUSE</span><strong id="crashCause">—</strong></div></section>
+          <section class="panel"><div class="panel-head"><div><span>CRASH SIGNALS</span><strong>Detection summary</strong></div></div><div class="kv-list" id="crashSignals"></div></section>
+        </div>
+        <section class="panel"><div class="panel-head"><div><span>PRE-CRASH TIMELINE</span><strong>Events immediately before failure</strong></div></div><div class="timeline" id="crashTimeline"><div class="empty">No crash timeline available.</div></div></section>
+      </section>
+
+      <section class="view" data-panel="performance">
+        <div class="section-head"><div><p class="eyebrow red">PERFORMANCE</p><h2>Script runtime pressure</h2></div></div>
+        <div class="metric-grid perf-metrics">
+          <article class="metric"><span>AVG SCRIPT TICK</span><strong id="pTick">—</strong><small>milliseconds</small></article>
+          <article class="metric"><span>PEAK WATCHDOG</span><strong id="pPeak">—</strong><small>milliseconds</small></article>
+          <article class="metric"><span>SLOW EVENTS</span><strong id="pSlow">0</strong><small>handler warnings</small></article>
+          <article class="metric"><span>ENTITY QUERIES</span><strong id="pEntity">0</strong><small>observed entries</small></article>
+        </div>
+        <div class="two-col">
+          <section class="panel"><div class="panel-head"><div><span>WATCHDOG SPIKES</span><strong>Detected timing pressure</strong></div></div><div class="bar-chart" id="watchdogChart"><div class="empty">No timing samples found.</div></div></section>
+          <section class="panel"><div class="panel-head"><div><span>PROCESSING MAP</span><strong>Subsystem activity</strong></div></div><div class="process-list" id="processList"></div></section>
+        </div>
+      </section>
+
+      <section class="view" data-panel="weapon">
+        <div class="section-head"><div><p class="eyebrow red">WEAPON DEBUG</p><h2>Runtime weapon state</h2></div><select id="weaponSelect"><option value="">Detected weapons</option></select></div>
+        <div class="weapon-debug-grid">
+          <section class="weapon-visual panel"><div class="weapon-wire"><div class="wire-slide"></div><div class="wire-frame"></div><div class="wire-mag"></div><div class="wire-barrel"></div></div><div class="weapon-id"><span>ACTIVE WEAPON</span><strong id="wId">NO WEAPON DATA</strong><small id="wSkin">Skin: —</small></div></section>
+          <section class="panel"><div class="panel-head"><div><span>HANDLING STATE</span><strong>Extracted runtime fields</strong></div></div><div class="kv-list weapon-kv" id="weaponKv"></div></section>
+        </div>
+        <section class="panel"><div class="panel-head"><div><span>WEAPON EVENTS</span><strong>Matching log entries</strong></div></div><div class="timeline" id="weaponTimeline"><div class="empty">No weapon runtime lines detected.</div></div></section>
+      </section>
+
+      <section class="view" data-panel="inspector">
+        <div class="section-head"><div><p class="eyebrow red">ERROR INSPECTOR</p><h2>Grouped source failures</h2></div><input class="inspector-search" id="groupSearch" type="search" placeholder="Filter category or source file…"></div>
+        <div class="inspector-layout">
+          <div class="category-list" id="categoryList"><div class="empty">No diagnostics loaded.</div></div>
+          <section class="panel inspector-detail"><div class="panel-head"><div><span>GROUP DETAIL</span><strong id="detailTitle">Select an error group</strong></div><b id="detailCount">0×</b></div><div id="detailBody" class="detail-body"><div class="empty">Choose a category to inspect source lines and likely fixes.</div></div></section>
+        </div>
+      </section>
+
+      <section class="view" data-panel="builds">
+        <div class="section-head"><div><p class="eyebrow red">BUILD COMPARISON</p><h2>Regression tracking</h2></div><button class="primary small" id="saveBuildBtn">SAVE CURRENT SNAPSHOT</button></div>
+        <div class="build-inputs"><label>Current build<input id="buildName" placeholder="V3.7.10"></label><label>Compare against<select id="compareBuild"><option value="">Select saved build</option></select></label></div>
+        <div class="compare-grid">
+          <section class="panel build-card"><span>BASELINE</span><strong id="baseBuildName">—</strong><div><b id="baseErrors">0</b><small>Errors</small></div></section>
+          <section class="compare-arrow">→</section>
+          <section class="panel build-card active-build"><span>CURRENT</span><strong id="currentBuildName">UNASSIGNED</strong><div><b id="currentErrors">0</b><small>Errors</small></div></section>
+        </div>
+        <div class="metric-grid compare-metrics"><article class="metric success"><span>FIXED</span><strong id="fixedCount">0</strong><small>groups removed</small></article><article class="metric critical"><span>NEW REGRESSIONS</span><strong id="regressionCount">0</strong><small>new groups</small></article><article class="metric"><span>NET CHANGE</span><strong id="netChange">0</strong><small>total issues</small></article></div>
+        <section class="panel"><div class="panel-head"><div><span>BUILD HISTORY</span><strong>Saved locally on this device</strong></div><button id="clearBuilds">CLEAR</button></div><div id="buildHistory" class="build-history"><div class="empty">No saved snapshots.</div></div></section>
+      </section>
+
+      <section class="view" data-panel="upload">
+        <div class="section-head"><div><p class="eyebrow red">CONTENTLOG ANALYZER</p><h2>Drop. Parse. Diagnose.</h2></div></div>
+        <div class="upload-grid">
+          <label class="drop-zone" id="dropZone">
+            <input id="fileInput" type="file" accept=".txt,.log,text/plain">
+            <div class="drop-icon">↓</div><strong>DROP CONTENTLOG HERE</strong><p>or tap to choose a .txt / .log file</p><small>Processing stays inside your browser. Nothing is transmitted.</small>
+          </label>
+          <section class="panel paste-panel"><div class="panel-head"><div><span>QUICK INPUT</span><strong>Paste raw ContentLog</strong></div></div><textarea id="logPaste" spellcheck="false" placeholder="Paste ContentLog lines here…"></textarea><button class="primary" id="parsePaste">ANALYZE PASTED LOG</button></section>
+        </div>
+        <section class="panel parse-status"><div class="panel-head"><div><span>ANALYSIS STATUS</span><strong id="parseStatusTitle">Waiting for input</strong></div><b id="parsePercent">0%</b></div><div class="progress-track"><i id="parseBar"></i></div><div class="parse-meta" id="parseMeta"><span>Filename: —</span><span>Size: —</span><span>Lines: —</span></div></section>
+      </section>
+    </main>
+  </div>
+
+  <script src="console.js?v=1"></script>
+</body>
+</html>
