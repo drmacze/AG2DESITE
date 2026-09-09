@@ -12,13 +12,12 @@ function safeSet(store,key,value){try{store.setItem(key,value)}catch{}}
 function safeRemove(store,key){try{store.removeItem(key)}catch{}}
 async function digestHex(text){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
 
+/* Keep the console's original premium visual stack intact. Additional features
+   are strictly additive and use isolated ag2-* selectors. */
 function ensureEnhancementStyles(){
   const styles=[
     ['ui-enhancements.css?v=1','ag2UiEnhancements'],
-    ['console-refine.css?v=1','ag2ConsoleRefine'],
-    ['report-share.css?v=1','ag2ReportShare'],
-    ['development-cms.css?v=1','ag2DevelopmentCms'],
-    ['development-cms-connect.css?v=1','ag2DevelopmentCmsConnect']
+    ['report-share.css?v=2','ag2ReportShare']
   ];
   for(const [href,key] of styles){
     if(document.querySelector(`link[data-${key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase())}]`))continue;
@@ -41,10 +40,7 @@ function ensureRuntimeScript(src,dataKey){
   document.body.appendChild(script);
 }
 function ensureEnhancementRuntime(){
-  ensureRuntimeScript('console-refine.js?v=1','ag2ConsoleRefine');
-  ensureRuntimeScript('report-share.js?v=1','ag2ReportShare');
-  ensureRuntimeScript('development-cms.js?v=1','ag2DevelopmentCms');
-  ensureRuntimeScript('development-cms-connect.js?v=1','ag2DevelopmentCmsConnect');
+  ensureRuntimeScript('report-share.js?v=2','ag2ReportShare');
 }
 window.addEventListener('load',()=>requestAnimationFrame(ensureEnhancementRuntime),{once:true});
 
@@ -121,7 +117,7 @@ function enhanceDropZone(){
 
 function installDocumentTitles(){
   const titles={
-    overview:'System Overview',console:'Live Console',crash:'Crash Analyzer',performance:'Performance',weapon:'Weapon Debug',inspector:'Error Inspector',builds:'Build Comparison',upload:'ContentLog',development:'Development'
+    overview:'System Overview',console:'Live Console',crash:'Crash Analyzer',performance:'Performance',weapon:'Weapon Debug',inspector:'Error Inspector',builds:'Build Comparison',upload:'ContentLog'
   };
   const set=name=>{if(titles[name])document.title=`${titles[name]} — DLAVIE DEV`};
   document.addEventListener('click',event=>{
